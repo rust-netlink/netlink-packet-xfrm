@@ -68,13 +68,13 @@ impl Emitable for SecurityCtx {
 }
 
 impl SecurityCtx {
-    pub fn context(&mut self, secctx: &Vec<u8>) {
+    pub fn context(&mut self, secctx: &[u8]) {
         // The kernel limits the length of the security context
         // string to the page size, which is commonly 4096.
         // iproute2 limits it to 256 when parsing from the cli.
         // Keeping it at 256 should be plenty, but if it needs to
         // be a little more generous, it can be raised.
-        let mut ctx_str = secctx.clone();
+        let mut ctx_str = secctx.to_vec();
         ctx_str.truncate(256);
         self.ctx_len = ctx_str.len() as u16;
         self.ctx_str = ctx_str;

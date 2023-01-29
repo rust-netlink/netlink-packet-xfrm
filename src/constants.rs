@@ -39,7 +39,7 @@ pub const XFRMA_ALG_CRYPT: u16 = 2; /* struct xfrm_algo */
 pub const XFRMA_ALG_COMP: u16 = 3; /* struct xfrm_algo */
 pub const XFRMA_ENCAP: u16 = 4; /* struct xfrm_algo + struct xfrm_encap_tmpl */
 pub const XFRMA_TMPL: u16 = 5; /* 1 or more struct xfrm_user_tmpl */
-pub const XFRMA_SA: u16 = 6; /* struct xfrm_usersa_info  */
+pub const XFRMA_SA: u16 = 6; /* struct xfrm_usersa_info */
 pub const XFRMA_POLICY: u16 = 7; /* struct xfrm_userpolicy_info */
 pub const XFRMA_SEC_CTX: u16 = 8; /* struct xfrm_sec_ctx */
 pub const XFRMA_LTIME_VAL: u16 = 9; /* struct xfrm_lifetime_cur */
@@ -48,7 +48,7 @@ pub const XFRMA_REPLAY_THRESH: u16 = 11; /* __u32 */
 pub const XFRMA_ETIMER_THRESH: u16 = 12; /* __u32 */
 pub const XFRMA_SRCADDR: u16 = 13; /* xfrm_address_t */
 pub const XFRMA_COADDR: u16 = 14; /* xfrm_address_t */
-pub const XFRMA_LASTUSED: u16 = 15; /* unsigned long  */
+pub const XFRMA_LASTUSED: u16 = 15; /* unsigned long */
 pub const XFRMA_POLICY_TYPE: u16 = 16; /* struct xfrm_userpolicy_type */
 pub const XFRMA_MIGRATE: u16 = 17; /* struct xfrm_user_migrate */
 pub const XFRMA_ALG_AEAD: u16 = 18; /* struct xfrm_algo_aead */
@@ -135,7 +135,7 @@ pub const IPPROTO_ESP: u8 = libc::IPPROTO_ESP as u8; //  50
 pub const IPPROTO_AH: u8 = libc::IPPROTO_AH as u8; //  51
 pub const IPPROTO_DSTOPTS: u8 = libc::IPPROTO_DSTOPTS as u8; //  60
 pub const IPPROTO_COMP: u8 = libc::IPPROTO_COMP as u8; // 108
-pub const IPSEC_PROTO_ANY: u8 = 255 as u8;
+pub const IPSEC_PROTO_ANY: u8 = 255_u8;
 
 // ==========================================
 // XFRM Mode
@@ -186,7 +186,7 @@ pub const XFRM_SC_ALG_SELINUX: u8 = 1;
 // Async Event flags
 // ==========================================
 pub const XFRM_AE_UNSPEC: u32 = 0;
-pub const XFRM_AE_RTHR: u32 = 1; /* replay threshold*/
+pub const XFRM_AE_RTHR: u32 = 1; /* replay threshold */
 pub const XFRM_AE_RVAL: u32 = 2; /* replay value */
 pub const XFRM_AE_LVAL: u32 = 4; /* lifetime value */
 pub const XFRM_AE_ETHR: u32 = 8; /* expiry timer threshold */

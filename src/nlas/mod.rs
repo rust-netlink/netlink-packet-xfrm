@@ -24,6 +24,7 @@ pub use replay::*;
 pub mod replay_esn;
 pub use replay_esn::*;
 
+#[allow(clippy::len_without_is_empty)]
 pub mod security_ctx;
 pub use security_ctx::*;
 
@@ -66,7 +67,8 @@ pub enum XfrmAttrs {
     EncapsulationTemplate(EncapTmpl),
     EncryptionAlg(Alg),
     EncryptionAlgAead(AlgAead),
-    EventTimeThreshold(u32), // replay event timer threshold (rate limit in ms)
+    EventTimeThreshold(u32), /* replay event timer threshold (rate limit in
+                              * ms) */
     ExtraFlags(u32),
     IfId(u32),
     KmAddress(UserKmAddress),
@@ -138,7 +140,6 @@ impl Nla for XfrmAttrs {
         }
     }
 
-    #[rustfmt::skip]
     fn emit_value(&self, buffer: &mut [u8]) {
         use self::XfrmAttrs::*;
         match *self {
@@ -162,7 +163,9 @@ impl Nla for XfrmAttrs {
             MarkVal(ref v) => NativeEndian::write_u32(buffer, *v),
             Migrate(ref v) => v.emit(buffer),
             OffloadDevice(ref v) => v.emit(buffer),
-            Pad() => /*ignore*/return,
+            Pad() =>
+                /* ignore */
+                {}
             PolicyInfo(ref v) => v.emit(buffer),
             PolicyType(ref v) => v.emit(buffer),
             Proto(ref v) => buffer[0] = *v,
@@ -174,20 +177,18 @@ impl Nla for XfrmAttrs {
             SrcAddr(ref v) => v.emit(buffer),
             Template(ref v) => {
                 let mut it_tmpl = v.iter();
-                let mut it_buf = buffer.chunks_exact_mut(XFRM_USER_TEMPLATE_LEN);
-
+                let mut it_buf =
+                    buffer.chunks_exact_mut(XFRM_USER_TEMPLATE_LEN);
                 loop {
-                    if let Some(tmpl) = it_tmpl.next() {
-                        if let Some(buf) = it_buf.next() {
-                            tmpl.emit(buf);
-                        } else {
-                            break;
-                        }
+                    if let (Some(tmpl), Some(buf)) =
+                        (it_tmpl.next(), it_buf.next())
+                    {
+                        tmpl.emit(buf);
                     } else {
                         break;
                     }
                 }
-            },
+            }
             TfcPadding(ref v) => NativeEndian::write_u32(buffer, *v),
             Unspec(ref bytes) => buffer.copy_from_slice(bytes.as_slice()),
 
@@ -354,9 +355,9 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for XfrmAttrs {
             ),
             XFRMA_TMPL => {
                 let mut tmpls: Vec<UserTemplate> = vec![];
-                let mut it = payload.chunks_exact(XFRM_USER_TEMPLATE_LEN);
+                let it = payload.chunks_exact(XFRM_USER_TEMPLATE_LEN);
 
-                while let Some(t) = it.next() {
+                for t in it {
                     let tmpl =
                         UserTemplate::parse(&UserTemplateBuffer::new(&t))
                             .context("invalid XFRMA_TMPL")?;
@@ -371,7 +372,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for XfrmAttrs {
 
             kind => Other(
                 DefaultNla::parse(buf)
-                    .context(format!("unknown NLA type {}", kind))?,
+                    .context(format!("unknown NLA type {kind}"))?,
             ),
         })
     }

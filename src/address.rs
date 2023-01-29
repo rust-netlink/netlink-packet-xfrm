@@ -20,7 +20,7 @@ buffer!(AddressBuffer(XFRM_ADDRESS_LEN) {
 impl<T: AsRef<[u8]> + ?Sized> Parseable<AddressBuffer<&T>> for Address {
     fn parse(buf: &AddressBuffer<&T>) -> Result<Self, DecodeError> {
         let mut addr_payload: [u8; XFRM_ADDRESS_LEN] = [0; XFRM_ADDRESS_LEN];
-        addr_payload.clone_from_slice(&buf.addr());
+        addr_payload.clone_from_slice(buf.addr());
         Ok(Address { addr: addr_payload })
     }
 }

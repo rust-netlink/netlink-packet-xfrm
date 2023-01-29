@@ -28,7 +28,7 @@ buffer!(AlgBuffer(XFRM_ALG_HEADER_LEN) {
 impl<T: AsRef<[u8]> + ?Sized> Parseable<AlgBuffer<&T>> for Alg {
     fn parse(buf: &AlgBuffer<&T>) -> Result<Self, DecodeError> {
         let mut alg_name: [u8; XFRM_ALG_NAME_LEN] = [0; XFRM_ALG_NAME_LEN];
-        alg_name.clone_from_slice(&buf.alg_name());
+        alg_name.clone_from_slice(buf.alg_name());
 
         Ok(Alg {
             alg_name,

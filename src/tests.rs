@@ -23,11 +23,11 @@ fn parse_xfrm_pol_1() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P1_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::FlushPolicy(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -49,7 +49,7 @@ fn emit_xfrm_pol_1() {
     );
     packet.finalize();
     packet.serialize(&mut buf[..]);
-    println!("{:?}", packet);
+    println!("{packet:?}");
     assert_eq!(&buf[..], &P1_BYTES[..]);
 
     //send it out kernel netlink socket to perform the actual flush (needs to
@@ -62,11 +62,11 @@ fn parse_xfrm_pol_2() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P2_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::FlushPolicy(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -93,7 +93,7 @@ fn emit_xfrm_pol_2() {
     );
     packet.finalize();
     packet.serialize(&mut buf[..]);
-    println!("{:?}", packet);
+    println!("{packet:?}");
     assert_eq!(&buf[..], &P2_BYTES[..]);
 
     //send it out kernel netlink socket to perform the actual flush (needs to
@@ -106,7 +106,7 @@ fn parse_xfrm_pol_3() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P3_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::AddPolicy(xm)) => {
@@ -327,7 +327,7 @@ fn emit_xfrm_pol_3() {
     );
     packet.finalize();
     packet.serialize(&mut buf[..]);
-    println!("{:?}", packet);
+    println!("{packet:?}");
     assert_eq!(&buf[..], &P3_BYTES[..]);
 
     //netlink_send_recv(&buf[..]);
@@ -338,7 +338,7 @@ fn parse_emit_xfrm_pol_4() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P4_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -346,7 +346,7 @@ fn parse_emit_xfrm_pol_4() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::UpdatePolicy(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -359,7 +359,7 @@ fn parse_xfrm_pol_5() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P5_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::AddPolicy(xm)) => {
@@ -566,7 +566,7 @@ fn emit_xfrm_pol_5() {
     );
     packet.finalize();
     packet.serialize(&mut buf[..]);
-    println!("{:?}", packet);
+    println!("{packet:?}");
     assert_eq!(&buf[..], &P5_BYTES[..]);
 
     //netlink_send_recv(&buf[..]);
@@ -577,7 +577,7 @@ fn parse_emit_xfrm_pol_6() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P6_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -585,7 +585,7 @@ fn parse_emit_xfrm_pol_6() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::DeletePolicy(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -600,7 +600,7 @@ fn parse_emit_xfrm_pol_7() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P7_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -608,7 +608,7 @@ fn parse_emit_xfrm_pol_7() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::GetPolicy(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -623,7 +623,7 @@ fn parse_emit_xfrm_pol_8() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P8_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -631,7 +631,7 @@ fn parse_emit_xfrm_pol_8() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::AddPolicy(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -646,7 +646,7 @@ fn parse_emit_xfrm_pol_9() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P9_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -654,7 +654,7 @@ fn parse_emit_xfrm_pol_9() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::GetSpdInfo(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -669,7 +669,7 @@ fn parse_emit_xfrm_pol_10() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P10_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -677,7 +677,7 @@ fn parse_emit_xfrm_pol_10() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::NewSpdInfo(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
 
             // iterate attributes
             for attr in xm.nlas.iter() {
@@ -717,7 +717,7 @@ fn parse_emit_xfrm_pol_11() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P11_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -725,7 +725,7 @@ fn parse_emit_xfrm_pol_11() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::GetPolicyDefault(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -740,7 +740,7 @@ fn parse_emit_xfrm_pol_12() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P12_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; P12_BYTES.len()]; // the sample packet has one extra byte of padding that isn't parsed
                                             //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -748,7 +748,7 @@ fn parse_emit_xfrm_pol_12() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::GetPolicyDefault(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -763,7 +763,7 @@ fn parse_emit_xfrm_pol_13() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P13_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -771,7 +771,7 @@ fn parse_emit_xfrm_pol_13() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::SetPolicyDefault(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -786,7 +786,7 @@ fn parse_emit_xfrm_pol_14() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&P14_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -794,7 +794,7 @@ fn parse_emit_xfrm_pol_14() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::AddPolicy(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -809,7 +809,7 @@ fn parse_emit_xfrm_st_1() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&S1_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -817,7 +817,7 @@ fn parse_emit_xfrm_st_1() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::AddSa(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -832,7 +832,7 @@ fn parse_emit_xfrm_st_2() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&S2_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -840,7 +840,7 @@ fn parse_emit_xfrm_st_2() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::UpdateSa(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -855,7 +855,7 @@ fn parse_emit_xfrm_st_3() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&S3_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -863,7 +863,7 @@ fn parse_emit_xfrm_st_3() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::GetSa(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -878,7 +878,7 @@ fn parse_emit_xfrm_st_4() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&S4_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -886,7 +886,7 @@ fn parse_emit_xfrm_st_4() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::AddSa(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -901,7 +901,7 @@ fn parse_emit_xfrm_st_5() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&S5_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -909,7 +909,7 @@ fn parse_emit_xfrm_st_5() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::DeleteSa(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -924,7 +924,7 @@ fn parse_emit_xfrm_st_6() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&S6_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -932,7 +932,7 @@ fn parse_emit_xfrm_st_6() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::FlushSa(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -947,7 +947,7 @@ fn parse_emit_xfrm_st_7() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&S7_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -955,7 +955,7 @@ fn parse_emit_xfrm_st_7() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::GetSadInfo(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -970,7 +970,7 @@ fn parse_emit_xfrm_st_8() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&S8_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -978,13 +978,13 @@ fn parse_emit_xfrm_st_8() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::NewSadInfo(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
             // iterate attributes
             for attr in xm.nlas.iter() {
                 match attr {
                     SadCount(si) => assert_eq!(*si, 1),
                     SadHInfo(si) => {
-                        println!("{:?}", si);
+                        println!("{si:?}");
                         assert_eq!(si.sadhcnt, 8);
                         assert_eq!(si.sadhmcnt, 1048576);
                     }
@@ -1007,7 +1007,7 @@ fn parse_emit_xfrm_st_9() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&S9_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -1015,7 +1015,7 @@ fn parse_emit_xfrm_st_9() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::AllocSpi(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -1030,7 +1030,7 @@ fn parse_emit_xfrm_st_10() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&S10_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -1038,7 +1038,7 @@ fn parse_emit_xfrm_st_10() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::AddSa(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -1053,7 +1053,7 @@ fn parse_emit_xfrm_mon_1() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&M1_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -1061,7 +1061,7 @@ fn parse_emit_xfrm_mon_1() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::Expire(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -1076,7 +1076,7 @@ fn parse_emit_xfrm_mon_2() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&M2_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -1084,7 +1084,7 @@ fn parse_emit_xfrm_mon_2() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::PolicyExpire(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -1099,7 +1099,7 @@ fn parse_emit_xfrm_mon_3() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&M3_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -1107,7 +1107,7 @@ fn parse_emit_xfrm_mon_3() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::Acquire(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -1149,7 +1149,7 @@ fn emit_xfrm_mon_4() {
     );
     packet.finalize();
     packet.serialize(&mut buf[..]);
-    println!("{:?}", packet);
+    println!("{packet:?}");
     assert_eq!(&buf[..packet.buffer_len()], &M4_BYTES[..]);
 
     //netlink_send_recv(&buf[..packet.buffer_len()]);
@@ -1160,7 +1160,7 @@ fn parse_emit_xfrm_mon_4() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&M4_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -1168,7 +1168,7 @@ fn parse_emit_xfrm_mon_4() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::GetAsyncEvent(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -1183,7 +1183,7 @@ fn parse_emit_xfrm_mon_5() {
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&M5_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     let mut buf = vec![0; deserialized_packet.buffer_len()];
     //reserialize
     deserialized_packet.serialize(&mut buf[..]);
@@ -1191,7 +1191,7 @@ fn parse_emit_xfrm_mon_5() {
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::NewAsyncEvent(xm)) => {
-            println!("{:?}", xm);
+            println!("{xm:?}");
         }
         _ => {
             panic!("unhandled NetlinkPayload variant");
@@ -1239,13 +1239,13 @@ fn emit_parse_xfrm_mon_6() {
         NetlinkMessage::new(nl_hdr, XfrmMessage::Report(report_payload).into());
     packet.finalize();
     packet.serialize(&mut buf[..]);
-    println!("{:?}", packet);
+    println!("{packet:?}");
     assert_eq!(&buf[..packet.buffer_len()], &M6_BYTES[..]);
 
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&M6_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     assert_eq!(packet, deserialized_packet);
 
     //netlink_send_recv(&buf[..packet.buffer_len()]);
@@ -1286,13 +1286,13 @@ fn emit_parse_xfrm_mon_7() {
     );
     packet.finalize();
     packet.serialize(&mut buf[..]);
-    println!("{:?}", packet);
+    println!("{packet:?}");
     assert_eq!(&buf[..packet.buffer_len()], &M7_BYTES[..]);
 
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&M7_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     assert_eq!(packet, deserialized_packet);
 
     //netlink_send_recv(&buf[..packet.buffer_len()]);
@@ -1322,13 +1322,13 @@ fn emit_parse_xfrm_mon_8() {
     );
     packet.finalize();
     packet.serialize(&mut buf[..]);
-    println!("{:?}", packet);
+    println!("{packet:?}");
     assert_eq!(&buf[..packet.buffer_len()], &M8_BYTES[..]);
 
     let deserialized_packet =
         NetlinkMessage::<XfrmMessage>::deserialize(&M8_BYTES)
             .expect("Failed to deserialize message");
-    println!("{:?}", deserialized_packet);
+    println!("{deserialized_packet:?}");
     assert_eq!(packet, deserialized_packet);
 
     //netlink_send_recv(&buf[..packet.buffer_len()]);
@@ -1342,7 +1342,7 @@ fn netlink_send_recv(pkt: &[u8]) {
     // address is for the kernel
     let kernel_addr = SocketAddr::new(0, 0);
     // send the message to the kernel
-    let n_sent = socket.send_to(&pkt[..], &kernel_addr, 0).unwrap();
+    let n_sent = socket.send_to(pkt, &kernel_addr, 0).unwrap();
     assert_eq!(n_sent, pkt.len());
     // buffer for receiving the response
     let mut buf = vec![0; 4096];
