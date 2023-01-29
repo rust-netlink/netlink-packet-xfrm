@@ -1,6 +1,6 @@
 [package]
 name = "netlink-packet-xfrm"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Scott Zuk <zooknotic@proton.me>"]
 edition = "2018"
 homepage = "https://github.com/rust-netlink/netlink-packet-xfrm"

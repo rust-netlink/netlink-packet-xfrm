@@ -1,0 +1,15 @@
+# Changelog
+## [0.2.0] - 2023-01-29
+### Breaking changes
+ - Removed the reexports. (8d3f0d2)
+    * `netlink-packet-xfrm::ErrorMessage`
+    * `netlink-packet-xfrm::NetlinkBuffer`
+    * `netlink-packet-xfrm::NetlinkHeader`
+    * `netlink-packet-xfrm::NetlinkMessage`
+    * `netlink-packet-xfrm::NetlinkPayload`
+
+### New features
+ - N/A
+
+### Bug fixes
+ - N/A
