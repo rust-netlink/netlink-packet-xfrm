@@ -19,5 +19,5 @@ netlink-packet-utils = { version = "0.5.2" }
 
 [dev-dependencies]
 lazy_static = "1.4.0"
-netlink-proto = { version = "0.10.0" }
-netlink-sys = { version = "0.8.3" }
+netlink-proto = { version = "0.11.1" }
+netlink-sys = { version = "0.8.4" }
