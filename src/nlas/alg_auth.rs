@@ -33,7 +33,7 @@ impl<T: AsRef<[u8]> + ?Sized> Parseable<AlgAuthBuffer<&T>> for AlgAuth {
     fn parse(buf: &AlgAuthBuffer<&T>) -> Result<Self, DecodeError> {
         let mut alg_name: [u8; XFRM_ALG_AUTH_NAME_LEN] =
             [0; XFRM_ALG_AUTH_NAME_LEN];
-        alg_name.clone_from_slice(&buf.alg_name());
+        alg_name.clone_from_slice(buf.alg_name());
 
         Ok(AlgAuth {
             alg_name,

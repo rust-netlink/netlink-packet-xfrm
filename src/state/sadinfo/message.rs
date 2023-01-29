@@ -23,7 +23,7 @@ impl Emitable for NewSadInfoMessage {
     fn emit(&self, buffer: &mut [u8]) {
         let mut buffer = NewSadInfoMessageBuffer::new(buffer);
         buffer.set_flags(self.flags);
-        self.nlas.as_slice().emit(&mut buffer.attributes_mut());
+        self.nlas.as_slice().emit(buffer.attributes_mut());
     }
 }
 
