@@ -3,14 +3,15 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 
+use netlink_packet_core::{NetlinkHeader, NetlinkMessage, NetlinkPayload};
+
 use crate::{
     constants::*, policy::FlushMessage, policy::ModifyMessage, Address,
     AsyncEventId, EncapTmpl, GetAsyncEventMessage, Id, Lifetime,
-    LifetimeConfig, MappingMessage, Mark, MigrateMessage, NetlinkHeader,
-    NetlinkMessage, ReportMessage, SadInfoAttrs::*, Selector, SpdInfoAttrs::*,
-    UserKmAddress, UserMapping, UserMigrate, UserPolicyId, UserPolicyInfo,
-    UserPolicyType, UserReport, UserSaId, UserTemplate, XfrmAttrs,
-    XfrmAttrs::*, XfrmMessage,
+    LifetimeConfig, MappingMessage, Mark, MigrateMessage, ReportMessage,
+    SadInfoAttrs::*, Selector, SpdInfoAttrs::*, UserKmAddress, UserMapping,
+    UserMigrate, UserPolicyId, UserPolicyInfo, UserPolicyType, UserReport,
+    UserSaId, UserTemplate, XfrmAttrs, XfrmAttrs::*, XfrmMessage,
 };
 
 use netlink_packet_core::*;
@@ -38,20 +39,21 @@ fn parse_xfrm_pol_1() {
 fn emit_xfrm_pol_1() {
     let mut buf = vec![0; P1_BYTES.len()];
 
-    let mut packet = NetlinkMessage {
-        header: NetlinkHeader {
-            sequence_number: 1650675114,
-            flags: NLM_F_REQUEST | NLM_F_ACK,
-            ..Default::default()
-        },
-        payload: XfrmMessage::FlushPolicy(FlushMessage::default()).into(),
-    };
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.sequence_number = 1650675114;
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
+
+    let mut packet = NetlinkMessage::new(
+        nl_hdr,
+        XfrmMessage::FlushPolicy(FlushMessage::default()).into(),
+    );
     packet.finalize();
     packet.serialize(&mut buf[..]);
     println!("{:?}", packet);
     assert_eq!(&buf[..], &P1_BYTES[..]);
 
-    //send it out kernel netlink socket to perform the actual flush (needs to be root)
+    //send it out kernel netlink socket to perform the actual flush (needs to
+    // be root)
     netlink_send_recv(&buf[..]);
 }
 
@@ -81,20 +83,21 @@ fn emit_xfrm_pol_2() {
             ..Default::default()
         })],
     };
-    let mut packet = NetlinkMessage {
-        header: NetlinkHeader {
-            sequence_number: 1650861160,
-            flags: NLM_F_REQUEST | NLM_F_ACK,
-            ..Default::default()
-        },
-        payload: XfrmMessage::FlushPolicy(flush_payload).into(),
-    };
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.sequence_number = 1650861160;
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
+
+    let mut packet = NetlinkMessage::new(
+        nl_hdr,
+        XfrmMessage::FlushPolicy(flush_payload).into(),
+    );
     packet.finalize();
     packet.serialize(&mut buf[..]);
     println!("{:?}", packet);
     assert_eq!(&buf[..], &P2_BYTES[..]);
 
-    //send it out kernel netlink socket to perform the actual flush (needs to be root)
+    //send it out kernel netlink socket to perform the actual flush (needs to
+    // be root)
     netlink_send_recv(&buf[..]);
 }
 
@@ -314,14 +317,14 @@ fn emit_xfrm_pol_3() {
             XfrmAttrs::IfId(5),
         ],
     };
-    let mut packet = NetlinkMessage {
-        header: NetlinkHeader {
-            sequence_number: 1652078034,
-            flags: NLM_F_REQUEST | NLM_F_ACK,
-            ..Default::default()
-        },
-        payload: XfrmMessage::AddPolicy(modify_payload).into(),
-    };
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.sequence_number = 1652078034;
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
+
+    let mut packet = NetlinkMessage::new(
+        nl_hdr,
+        XfrmMessage::AddPolicy(modify_payload).into(),
+    );
     packet.finalize();
     packet.serialize(&mut buf[..]);
     println!("{:?}", packet);
@@ -553,14 +556,14 @@ fn emit_xfrm_pol_5() {
             XfrmAttrs::IfId(5),
         ],
     };
-    let mut packet = NetlinkMessage {
-        header: NetlinkHeader {
-            sequence_number: 1658818497,
-            flags: NLM_F_REQUEST | NLM_F_ACK,
-            ..Default::default()
-        },
-        payload: XfrmMessage::AddPolicy(modify_payload).into(),
-    };
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.sequence_number = 1658818497;
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
+
+    let mut packet = NetlinkMessage::new(
+        nl_hdr,
+        XfrmMessage::AddPolicy(modify_payload).into(),
+    );
     packet.finalize();
     packet.serialize(&mut buf[..]);
     println!("{:?}", packet);
@@ -1136,14 +1139,14 @@ fn emit_xfrm_mon_4() {
         },
     };
 
-    let mut packet = NetlinkMessage {
-        header: NetlinkHeader {
-            sequence_number: 0,
-            flags: NLM_F_REQUEST | NLM_F_ACK,
-            ..Default::default()
-        },
-        payload: XfrmMessage::GetAsyncEvent(get_async_payload).into(),
-    };
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.sequence_number = 0;
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
+
+    let mut packet = NetlinkMessage::new(
+        nl_hdr,
+        XfrmMessage::GetAsyncEvent(get_async_payload).into(),
+    );
     packet.finalize();
     packet.serialize(&mut buf[..]);
     println!("{:?}", packet);
@@ -1228,15 +1231,12 @@ fn emit_parse_xfrm_mon_6() {
             &Ipv4Addr::from_str("192.168.1.1").unwrap(),
         ))],
     };
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.sequence_number = 0;
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
 
-    let mut packet = NetlinkMessage {
-        header: NetlinkHeader {
-            sequence_number: 0,
-            flags: NLM_F_REQUEST | NLM_F_ACK,
-            ..Default::default()
-        },
-        payload: XfrmMessage::Report(report_payload).into(),
-    };
+    let mut packet =
+        NetlinkMessage::new(nl_hdr, XfrmMessage::Report(report_payload).into());
     packet.finalize();
     packet.serialize(&mut buf[..]);
     println!("{:?}", packet);
@@ -1276,15 +1276,14 @@ fn emit_parse_xfrm_mon_7() {
             new_sport: 20007,
         },
     };
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.sequence_number = 0;
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
 
-    let mut packet = NetlinkMessage {
-        header: NetlinkHeader {
-            sequence_number: 0,
-            flags: NLM_F_REQUEST | NLM_F_ACK,
-            ..Default::default()
-        },
-        payload: XfrmMessage::Mapping(mapping_payload).into(),
-    };
+    let mut packet = NetlinkMessage::new(
+        nl_hdr,
+        XfrmMessage::Mapping(mapping_payload).into(),
+    );
     packet.finalize();
     packet.serialize(&mut buf[..]);
     println!("{:?}", packet);
@@ -1313,14 +1312,14 @@ fn emit_parse_xfrm_mon_8() {
         ],
     };
 
-    let mut packet = NetlinkMessage {
-        header: NetlinkHeader {
-            sequence_number: 0,
-            flags: NLM_F_REQUEST | NLM_F_ACK,
-            ..Default::default()
-        },
-        payload: XfrmMessage::Migrate(migrate_payload).into(),
-    };
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.sequence_number = 0;
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
+
+    let mut packet = NetlinkMessage::new(
+        nl_hdr,
+        XfrmMessage::Migrate(migrate_payload).into(),
+    );
     packet.finalize();
     packet.serialize(&mut buf[..]);
     println!("{:?}", packet);
@@ -1339,7 +1338,8 @@ fn emit_parse_xfrm_mon_8() {
 fn netlink_send_recv(pkt: &[u8]) {
     // open a new socket for the NETLINK_XFRM subsystem
     let socket = Socket::new(NETLINK_XFRM).unwrap();
-    // address of the remote peer we'll send a message to. This particular address is for the kernel
+    // address of the remote peer we'll send a message to. This particular
+    // address is for the kernel
     let kernel_addr = SocketAddr::new(0, 0);
     // send the message to the kernel
     let n_sent = socket.send_to(&pkt[..], &kernel_addr, 0).unwrap();

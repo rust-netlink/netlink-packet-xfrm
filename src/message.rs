@@ -17,10 +17,12 @@ use crate::{
         FlushMessage as StateFlushMessage, GetDumpMessage, GetSadInfoMessage,
         ModifyMessage as StateModifyMessage, NewSadInfoMessage,
     },
-    NetlinkDeserializable, NetlinkHeader, NetlinkPayload, NetlinkSerializable,
     XfrmBuffer,
 };
 
+use netlink_packet_core::{
+    NetlinkDeserializable, NetlinkHeader, NetlinkPayload, NetlinkSerializable,
+};
 use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
