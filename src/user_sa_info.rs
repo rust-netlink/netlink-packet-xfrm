@@ -5,13 +5,14 @@ use anyhow::Context;
 use core::ops::Range;
 
 use crate::{
+    constants::{AF_INET, AF_INET6},
     Address, AddressBuffer, Id, IdBuffer, Lifetime, LifetimeBuffer,
     LifetimeConfig, LifetimeConfigBuffer, Selector, SelectorBuffer, Stats,
     StatsBuffer, XFRM_ADDRESS_LEN, XFRM_ID_LEN, XFRM_LIFETIME_CONFIG_LEN,
     XFRM_LIFETIME_LEN, XFRM_SELECTOR_LEN, XFRM_STATS_LEN,
 };
-
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
+use std::net::IpAddr;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserSaInfo {
@@ -118,5 +119,23 @@ impl Emitable for UserSaInfo {
         buffer.set_mode(self.mode);
         buffer.set_replay_window(self.replay_window);
         buffer.set_flags(self.flags);
+    }
+}
+
+impl UserSaInfo {
+    fn family(&mut self, addr: &IpAddr) {
+        if addr.is_ipv4() {
+            self.family = AF_INET;
+        } else if addr.is_ipv6() {
+            self.family = AF_INET6;
+        }
+    }
+    pub fn source(&mut self, addr: &IpAddr) {
+        self.saddr = Address::from_ip(addr);
+        self.family(&addr);
+    }
+    pub fn destination(&mut self, addr: &IpAddr) {
+        self.id.daddr = Address::from_ip(addr);
+        self.family(&addr);
     }
 }

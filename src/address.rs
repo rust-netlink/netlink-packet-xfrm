@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
@@ -56,5 +56,12 @@ impl Address {
 
     pub fn from_ipv6(ip: &Ipv6Addr) -> Address {
         Address { addr: ip.octets() }
+    }
+
+    pub fn from_ip(ip: &IpAddr) -> Address {
+        match ip {
+            IpAddr::V4(v4) => Self::from_ipv4(&v4),
+            IpAddr::V6(v6) => Self::from_ipv6(&v6),
+        }
     }
 }

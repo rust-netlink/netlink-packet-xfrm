@@ -3,8 +3,12 @@
 use anyhow::Context;
 
 use core::ops::Range;
+use std::net::IpAddr;
 
-use crate::{Address, AddressBuffer, XFRM_ADDRESS_LEN};
+use crate::{
+    constants::{AF_INET, AF_INET6},
+    Address, AddressBuffer, XFRM_ADDRESS_LEN,
+};
 
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
@@ -100,5 +104,37 @@ impl Emitable for Selector {
         buffer.set_proto(self.proto);
         buffer.set_ifindex(self.ifindex);
         buffer.set_user(self.user);
+    }
+}
+
+impl Selector {
+    fn family(&mut self, addr: &IpAddr) {
+        if addr.is_ipv4() {
+            self.family = AF_INET;
+        } else if addr.is_ipv6() {
+            self.family = AF_INET6;
+        }
+    }
+
+    pub fn source_prefix(&mut self, addr: &IpAddr, prefixlen: u8) {
+        self.saddr = Address::from_ip(addr);
+
+        if addr.is_unspecified() {
+            self.prefixlen_s = 0;
+        } else {
+            self.prefixlen_s = prefixlen;
+        }
+        self.family(&addr);
+    }
+
+    pub fn destination_prefix(&mut self, addr: &IpAddr, prefixlen: u8) {
+        self.daddr = Address::from_ip(addr);
+
+        if addr.is_unspecified() {
+            self.prefixlen_d = 0;
+        } else {
+            self.prefixlen_d = prefixlen;
+        }
+        self.family(&addr);
     }
 }

@@ -2,11 +2,12 @@
 
 use anyhow::Context;
 
-use core::ops::Range;
-
 use crate::{
+    constants::{AF_INET, AF_INET6},
     Address, AddressBuffer, Id, IdBuffer, XFRM_ADDRESS_LEN, XFRM_ID_LEN,
 };
+use core::ops::Range;
+use std::net::IpAddr;
 
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
@@ -111,5 +112,69 @@ impl Emitable for UserTemplate {
         buffer.set_aalgos(self.aalgos);
         buffer.set_ealgos(self.ealgos);
         buffer.set_calgos(self.calgos);
+    }
+}
+
+impl UserTemplate {
+    fn family(&mut self, addr: &IpAddr) {
+        if addr.is_ipv4() {
+            self.family = AF_INET;
+        } else if addr.is_ipv6() {
+            self.family = AF_INET6;
+        }
+    }
+
+    /// Sets the source address. Automatically sets the
+    /// family to AF_INET or AF_INET6 depending on the type of
+    /// the address. The source and destination addresses
+    /// should be the same type.
+    pub fn source(&mut self, addr: &IpAddr) {
+        self.saddr = Address::from_ip(addr);
+        self.family(&addr);
+    }
+
+    /// Sets the destination address. Automatically sets the
+    /// family to AF_INET or AF_INET6 depending on the type of
+    /// the address. The source and destination addresses
+    /// should be the same type.
+    pub fn destination(&mut self, addr: &IpAddr) {
+        self.id.daddr = Address::from_ip(addr);
+        self.family(&addr);
+    }
+
+    /// Sets the transform protocol. Should be one of:
+    ///   IPPROTO_ESP (50)
+    ///   IPPROTO_AH (51)
+    ///   PPROTO_COMP (108)
+    ///   IPPROTO_ROUTING (43)
+    ///   IPPROTO_DSTOPTS (60)
+    ///   IPSEC_PROTO_ANY (255)
+    pub fn protocol(&mut self, proto: u8) {
+        self.id.proto = proto;
+    }
+
+    /// Sets the transform mode. Should be one of:
+    ///   XFRM_MODE_TRANSPORT (0)
+    ///   XFRM_MODE_TUNNEL (1)
+    ///   XFRM_MODE_ROUTEOPTIMIZATION (2)
+    ///   XFRM_MODE_IN_TRIGGER (3)
+    ///   XFRM_MODE_BEET (4)
+    pub fn mode(&mut self, mode: u8) {
+        self.mode = mode;
+    }
+
+    /// Sets the SPI.
+    pub fn spi(&mut self, spi: u32) {
+        self.id.spi = spi;
+    }
+
+    /// Set true to make the use of this template optional.
+    /// The default is false (required).
+    pub fn optional(&mut self, optional: bool) {
+        self.optional = if optional { 1 } else { 0 };
+    }
+
+    pub fn reqid(&mut self, reqid: u32) {
+        self.reqid = reqid;
     }
 }
