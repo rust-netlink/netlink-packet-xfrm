@@ -2,9 +2,12 @@
 
 use anyhow::Context;
 
+use crate::{
+    constants::{AF_INET, AF_INET6},
+    Address, AddressBuffer, XFRM_ADDRESS_LEN,
+};
 use core::ops::Range;
-
-use crate::{Address, AddressBuffer, XFRM_ADDRESS_LEN};
+use std::net::IpAddr;
 
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
@@ -54,5 +57,19 @@ impl Emitable for UserSaId {
         buffer.set_spi(self.spi.to_be());
         buffer.set_family(self.family);
         buffer.set_proto(self.proto);
+    }
+}
+
+impl UserSaId {
+    fn family(&mut self, addr: &IpAddr) {
+        if addr.is_ipv4() {
+            self.family = AF_INET;
+        } else if addr.is_ipv6() {
+            self.family = AF_INET6;
+        }
+    }
+    pub fn destination(&mut self, addr: &IpAddr) {
+        self.daddr = Address::from_ip(addr);
+        self.family(&addr);
     }
 }
