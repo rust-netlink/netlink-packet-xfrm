@@ -6,12 +6,13 @@ use std::str::FromStr;
 use netlink_packet_core::{NetlinkHeader, NetlinkMessage, NetlinkPayload};
 
 use crate::{
-    constants::*, policy::FlushMessage, policy::ModifyMessage, Address,
-    AsyncEventId, EncapTmpl, GetAsyncEventMessage, Id, Lifetime,
-    LifetimeConfig, MappingMessage, Mark, MigrateMessage, ReportMessage,
-    SadInfoAttrs::*, Selector, SpdInfoAttrs::*, UserKmAddress, UserMapping,
-    UserMigrate, UserPolicyId, UserPolicyInfo, UserPolicyType, UserReport,
-    UserSaId, UserTemplate, XfrmAttrs, XfrmAttrs::*, XfrmMessage,
+    constants::*, policy::FlushMessage, policy::ModifyMessage,
+    policy::SpdInfoAttrs::*, state::SadInfoAttrs::*, Address, AsyncEventId,
+    EncapTmpl, GetAsyncEventMessage, Id, Lifetime, LifetimeConfig,
+    MappingMessage, Mark, MigrateMessage, ReportMessage, Selector,
+    UserKmAddress, UserMapping, UserMigrate, UserPolicyId, UserPolicyInfo,
+    UserPolicyType, UserReport, UserSaId, UserTemplate, XfrmAttrs,
+    XfrmAttrs::*, XfrmMessage,
 };
 
 use netlink_packet_core::*;

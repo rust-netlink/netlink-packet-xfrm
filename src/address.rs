@@ -60,8 +60,8 @@ impl Address {
 
     pub fn from_ip(ip: &IpAddr) -> Address {
         match ip {
-            IpAddr::V4(v4) => Self::from_ipv4(&v4),
-            IpAddr::V6(v6) => Self::from_ipv6(&v6),
+            IpAddr::V4(v4) => Self::from_ipv4(v4),
+            IpAddr::V6(v6) => Self::from_ipv6(v6),
         }
     }
 }

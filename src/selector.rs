@@ -124,7 +124,7 @@ impl Selector {
         } else {
             self.prefixlen_s = prefixlen;
         }
-        self.family(&addr);
+        self.family(addr);
     }
 
     pub fn destination_prefix(&mut self, addr: &IpAddr, prefixlen: u8) {
@@ -135,6 +135,6 @@ impl Selector {
         } else {
             self.prefixlen_d = prefixlen;
         }
-        self.family(&addr);
+        self.family(addr);
     }
 }

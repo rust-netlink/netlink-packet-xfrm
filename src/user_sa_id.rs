@@ -70,6 +70,6 @@ impl UserSaId {
     }
     pub fn destination(&mut self, addr: &IpAddr) {
         self.daddr = Address::from_ip(addr);
-        self.family(&addr);
+        self.family(addr);
     }
 }

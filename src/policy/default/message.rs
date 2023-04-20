@@ -2,10 +2,8 @@
 
 use anyhow::Context;
 
-use crate::{
-    DefaultMessageBuffer, UserPolicyDefault, UserPolicyDefaultBuffer,
-    POLICY_DEFAULT_HEADER_LEN,
-};
+use crate::policy::{DefaultMessageBuffer, POLICY_DEFAULT_HEADER_LEN};
+use crate::{UserPolicyDefault, UserPolicyDefaultBuffer};
 
 use netlink_packet_utils::{traits::*, DecodeError};
 

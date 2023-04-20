@@ -130,7 +130,7 @@ impl UserTemplate {
     /// should be the same type.
     pub fn source(&mut self, addr: &IpAddr) {
         self.saddr = Address::from_ip(addr);
-        self.family(&addr);
+        self.family(addr);
     }
 
     /// Sets the destination address. Automatically sets the
@@ -139,7 +139,7 @@ impl UserTemplate {
     /// should be the same type.
     pub fn destination(&mut self, addr: &IpAddr) {
         self.id.daddr = Address::from_ip(addr);
-        self.family(&addr);
+        self.family(addr);
     }
 
     /// Sets the transform protocol. Should be one of:
