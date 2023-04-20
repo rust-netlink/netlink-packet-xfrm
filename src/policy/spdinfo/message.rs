@@ -2,7 +2,7 @@
 
 use anyhow::Context;
 
-use crate::{
+use crate::policy::{
     GetSpdInfoMessageBuffer, NewSpdInfoMessageBuffer, SpdInfoAttrs,
     POLICY_GET_SPD_INFO_HEADER_LEN, POLICY_NEW_SPD_INFO_HEADER_LEN,
 };

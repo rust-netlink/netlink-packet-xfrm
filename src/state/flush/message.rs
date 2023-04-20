@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use crate::{state::FlushMessageBuffer, STATE_FLUSH_HEADER_LEN};
+use crate::state::{FlushMessageBuffer, STATE_FLUSH_HEADER_LEN};
 
 use netlink_packet_utils::{traits::*, DecodeError};
 

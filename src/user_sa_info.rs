@@ -132,10 +132,10 @@ impl UserSaInfo {
     }
     pub fn source(&mut self, addr: &IpAddr) {
         self.saddr = Address::from_ip(addr);
-        self.family(&addr);
+        self.family(addr);
     }
     pub fn destination(&mut self, addr: &IpAddr) {
         self.id.daddr = Address::from_ip(addr);
-        self.family(&addr);
+        self.family(addr);
     }
 }

@@ -179,14 +179,10 @@ impl Nla for XfrmAttrs {
                 let mut it_tmpl = v.iter();
                 let mut it_buf =
                     buffer.chunks_exact_mut(XFRM_USER_TEMPLATE_LEN);
-                loop {
-                    if let (Some(tmpl), Some(buf)) =
-                        (it_tmpl.next(), it_buf.next())
-                    {
-                        tmpl.emit(buf);
-                    } else {
-                        break;
-                    }
+                while let (Some(tmpl), Some(buf)) =
+                    (it_tmpl.next(), it_buf.next())
+                {
+                    tmpl.emit(buf);
                 }
             }
             TfcPadding(ref v) => NativeEndian::write_u32(buffer, *v),

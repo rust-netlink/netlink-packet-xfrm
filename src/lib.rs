@@ -7,10 +7,10 @@ pub mod async_event_id;
 pub use async_event_id::*;
 
 mod buffer;
-pub use self::buffer::*;
+pub use buffer::*;
 
 pub mod constants;
-pub use self::constants::*;
+pub use constants::*;
 
 pub mod id;
 pub use id::*;
@@ -19,22 +19,20 @@ pub mod lifetime;
 pub use lifetime::*;
 
 mod message;
-pub use self::message::*;
+pub use message::*;
 
 pub mod monitor;
 pub use monitor::*;
 
 pub mod nlas;
-pub use self::nlas::*;
+pub use nlas::*;
 
 pub mod policy;
-pub use self::policy::*;
 
 pub mod selector;
 pub use selector::*;
 
 pub mod state;
-pub use state::*;
 
 pub mod stats;
 pub use stats::*;

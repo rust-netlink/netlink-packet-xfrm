@@ -2,7 +2,8 @@
 
 use anyhow::Context;
 
-use crate::{AllocSpiMessageBuffer, UserSpiInfo, UserSpiInfoBuffer, XfrmAttrs};
+use crate::state::AllocSpiMessageBuffer;
+use crate::{UserSpiInfo, UserSpiInfoBuffer, XfrmAttrs};
 
 use netlink_packet_utils::{traits::*, DecodeError};
 

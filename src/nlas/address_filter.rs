@@ -89,7 +89,7 @@ impl AddressFilter {
         } else {
             self.splen = prefixlen;
         }
-        self.family(&addr);
+        self.family(addr);
     }
 
     pub fn destination_prefix(&mut self, addr: &IpAddr, prefixlen: u8) {
@@ -100,6 +100,6 @@ impl AddressFilter {
         } else {
             self.dplen = prefixlen;
         }
-        self.family(&addr);
+        self.family(addr);
     }
 }
