@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::policy::{DefaultMessageBuffer, POLICY_DEFAULT_HEADER_LEN};
 use crate::{UserPolicyDefault, UserPolicyDefaultBuffer};
@@ -8,6 +10,7 @@ use crate::{UserPolicyDefault, UserPolicyDefaultBuffer};
 use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DefaultMessage {
     pub user_policy: UserPolicyDefault,
 }

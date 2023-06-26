@@ -4,6 +4,8 @@ pub mod spd_info;
 pub use spd_info::*;
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::constants::*;
 
@@ -14,6 +16,7 @@ use netlink_packet_utils::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum SpdInfoAttrs {
     Unspec(Vec<u8>),
     SpdInfo(spd_info::SpdInfo),

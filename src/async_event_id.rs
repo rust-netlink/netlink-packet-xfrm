@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use core::ops::Range;
 
@@ -12,6 +14,7 @@ use crate::{
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct AsyncEventId {
     pub sa_id: UserSaId,
     pub saddr: Address,

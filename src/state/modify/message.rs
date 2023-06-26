@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::{
     state::ModifyMessageBuffer, UserSaInfo, UserSaInfoBuffer, XfrmAttrs,
@@ -9,6 +11,7 @@ use crate::{
 use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ModifyMessage {
     pub user_sa_info: UserSaInfo,
     pub nlas: Vec<XfrmAttrs>,

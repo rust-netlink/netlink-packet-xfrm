@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Stats {
     pub replay_window: u32,
     pub replay: u32,

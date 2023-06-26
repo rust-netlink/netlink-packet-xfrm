@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use crate::state::{FlushMessageBuffer, STATE_FLUSH_HEADER_LEN};
 
 use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct FlushMessage {
     pub protocol: u8,
 }

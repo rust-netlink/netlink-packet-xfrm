@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use crate::{
     constants::*,
     monitor::{
@@ -26,6 +29,7 @@ use netlink_packet_core::{
 use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum XfrmMessage {
     AddPolicy(PolicyModifyMessage),
     DeletePolicy(PolicyDelGetMessage),

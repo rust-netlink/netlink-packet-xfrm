@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::policy::{
     GetSpdInfoMessageBuffer, NewSpdInfoMessageBuffer, SpdInfoAttrs,
@@ -10,6 +12,7 @@ use crate::policy::{
 use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NewSpdInfoMessage {
     pub flags: u32,
     pub nlas: Vec<SpdInfoAttrs>,
@@ -56,6 +59,7 @@ impl<'a, T: AsRef<[u8]> + 'a> Parseable<NewSpdInfoMessageBuffer<&'a T>>
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GetSpdInfoMessage {
     pub flags: u32,
 }

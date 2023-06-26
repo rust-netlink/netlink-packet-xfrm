@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 
 use byteorder::{ByteOrder, NativeEndian};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 pub const XFRM_REPLAY_ESN_LEN: usize = 24;
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ReplayEsn {
     pub bmp_len: u32,
     pub oseq: u32,

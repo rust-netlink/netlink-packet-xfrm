@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use core::ops::Range;
 
@@ -9,6 +11,7 @@ use crate::{UserSaInfo, UserSaInfoBuffer, XFRM_USER_SA_INFO_LEN};
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct UserExpire {
     pub state: UserSaInfo,
     pub hard: u8,

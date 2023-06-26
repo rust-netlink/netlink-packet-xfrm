@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::{
     state::{DelGetMessageBuffer, GetDumpMessageBuffer},
@@ -10,6 +12,7 @@ use crate::{
 use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DelGetMessage {
     pub user_sa_id: UserSaId,
     pub nlas: Vec<XfrmAttrs>,
@@ -56,6 +59,7 @@ impl<'a, T: AsRef<[u8]> + 'a> Parseable<DelGetMessageBuffer<&'a T>>
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GetDumpMessage {
     pub nlas: Vec<XfrmAttrs>,
 }

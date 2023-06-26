@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
@@ -7,6 +9,7 @@ use netlink_packet_utils::{buffer, traits::*, DecodeError};
 pub const XFRM_ADDRESS_LEN: usize = 16;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Address {
     // Xfrm netlink API simply uses a 16 byte buffer for both IPv4 & IPv6
     // addresses and unfortunately doesn't always pair it with a family type.

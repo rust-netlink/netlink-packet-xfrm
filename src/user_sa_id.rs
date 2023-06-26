@@ -7,11 +7,14 @@ use crate::{
     Address, AddressBuffer, XFRM_ADDRESS_LEN,
 };
 use core::ops::Range;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct UserSaId {
     pub daddr: Address,
     pub spi: u32, // big-endian

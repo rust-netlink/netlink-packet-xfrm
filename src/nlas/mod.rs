@@ -42,6 +42,8 @@ pub use user_template::*;
 
 use anyhow::Context;
 use byteorder::{ByteOrder, NativeEndian};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::mem::size_of;
 
 use crate::{
@@ -58,6 +60,7 @@ use netlink_packet_utils::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum XfrmAttrs {
     AddressFilter(address_filter::AddressFilter),
     AuthenticationAlg(Alg),
