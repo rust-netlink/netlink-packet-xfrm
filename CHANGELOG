@@ -1,4 +1,25 @@
 # Changelog
+## [0.3.1] - 2023-07-09
+### Breaking changes
+ - N/A
+
+### New features
+ - N/A
+
+### Bug fixes
+ - Use latest rust-netlink crates. (543d396)
+
+## [0.3.0] - 2023-06-05
+### Breaking changes
+ - Related on structs. (7432621)
+
+### New features
+ - Add some helper methods to make xfrmnetlink message construction simpler.
+   (30be872)
+
+### Bug fixes
+ - N/A
+
 ## [0.2.0] - 2023-01-29
 ### Breaking changes
  - Removed the reexports. (8d3f0d2)
