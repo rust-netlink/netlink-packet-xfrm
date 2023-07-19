@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::state::AllocSpiMessageBuffer;
 use crate::{UserSpiInfo, UserSpiInfoBuffer, XfrmAttrs};
@@ -8,6 +10,7 @@ use crate::{UserSpiInfo, UserSpiInfoBuffer, XfrmAttrs};
 use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct AllocSpiMessage {
     pub spi_info: UserSpiInfo,
     pub nlas: Vec<XfrmAttrs>,

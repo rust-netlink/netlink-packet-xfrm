@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use crate::XFRM_INF;
 
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
@@ -7,6 +10,7 @@ use netlink_packet_utils::{buffer, traits::*, DecodeError};
 // Lifetime config
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LifetimeConfig {
     pub soft_byte_limit: u64,
     pub hard_byte_limit: u64,
@@ -82,6 +86,7 @@ impl Emitable for LifetimeConfig {
 // Lifetime curent
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Lifetime {
     pub bytes: u64,
     pub packets: u64,

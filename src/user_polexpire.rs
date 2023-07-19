@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use core::ops::Range;
 
@@ -9,6 +11,7 @@ use crate::{UserPolicyInfo, UserPolicyInfoBuffer, XFRM_USER_POLICY_INFO_LEN};
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct UserPolicyExpire {
     pub pol: UserPolicyInfo,
     pub hard: u8,

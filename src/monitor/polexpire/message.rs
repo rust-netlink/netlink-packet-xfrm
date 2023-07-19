@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::{
     PolicyExpireMessageBuffer, UserPolicyExpire, UserPolicyExpireBuffer,
@@ -10,6 +12,7 @@ use crate::{
 use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PolicyExpireMessage {
     pub expire: UserPolicyExpire,
     pub nlas: Vec<XfrmAttrs>,

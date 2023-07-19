@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SpdInfo {
     pub incnt: u32,
     pub outcnt: u32,
@@ -53,6 +57,7 @@ impl Emitable for SpdInfo {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SpdHInfo {
     pub spdhcnt: u32,
     pub spdhmcnt: u32,
@@ -87,6 +92,7 @@ impl Emitable for SpdHInfo {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SpdHThresh {
     pub lbits: u8,
     pub rbits: u8,

@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 use crate::constants::*;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SecurityCtx {
     pub len: u16,
     pub exttype: u16,

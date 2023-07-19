@@ -5,6 +5,8 @@ pub use sad_info::*;
 
 use anyhow::Context;
 use byteorder::{ByteOrder, NativeEndian};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::mem::size_of;
 
 use crate::constants::*;
@@ -17,6 +19,7 @@ use netlink_packet_utils::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum SadInfoAttrs {
     Unspec(Vec<u8>),
     SadCount(u32),

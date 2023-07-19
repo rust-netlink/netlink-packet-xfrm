@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "serde")]
+use {
+    serde::{Deserialize, Serialize},
+    serde_big_array::BigArray,
+};
+
 use core::ops::Range;
 
 use netlink_packet_utils::{buffer, traits::*, DecodeError};
@@ -7,7 +13,9 @@ use netlink_packet_utils::{buffer, traits::*, DecodeError};
 pub const XFRM_ALG_AUTH_NAME_LEN: usize = 64;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct AlgAuth {
+    #[cfg_attr(feature = "serde", serde(with = "BigArray"))]
     pub alg_name: [u8; XFRM_ALG_AUTH_NAME_LEN],
     pub alg_key_len: u32,
     pub alg_trunc_len: u32,

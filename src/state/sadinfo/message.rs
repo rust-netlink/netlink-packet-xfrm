@@ -8,8 +8,11 @@ use crate::state::{
 };
 
 use netlink_packet_utils::{traits::*, DecodeError};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NewSadInfoMessage {
     pub flags: u32,
     pub nlas: Vec<SadInfoAttrs>,
@@ -56,6 +59,7 @@ impl<'a, T: AsRef<[u8]> + 'a> Parseable<NewSadInfoMessageBuffer<&'a T>>
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GetSadInfoMessage {
     pub flags: u32,
 }

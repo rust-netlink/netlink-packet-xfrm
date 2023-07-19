@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use core::ops::Range;
 
@@ -15,6 +17,7 @@ use netlink_packet_utils::{buffer, traits::*, DecodeError};
 use std::net::IpAddr;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct UserSaInfo {
     pub selector: Selector,
     pub id: Id,
