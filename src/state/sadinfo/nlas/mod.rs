@@ -1,20 +1,15 @@
 // SPDX-License-Identifier: MIT
 
 pub mod sad_info;
-pub use sad_info::*;
-
-use anyhow::Context;
-use byteorder::{ByteOrder, NativeEndian};
 use std::mem::size_of;
 
-use crate::constants::*;
-
-use netlink_packet_utils::{
-    nla::{DefaultNla, Nla, NlaBuffer},
-    parsers::*,
-    traits::*,
-    DecodeError,
+use netlink_packet_core::{
+    emit_u32, parse_u32, DecodeError, DefaultNla, Emitable, ErrorContext, Nla,
+    NlaBuffer, Parseable,
 };
+pub use sad_info::*;
+
+use crate::constants::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SadInfoAttrs {
@@ -41,7 +36,7 @@ impl Nla for SadInfoAttrs {
         use self::SadInfoAttrs::*;
         match *self {
             Unspec(ref bytes) => buffer.copy_from_slice(bytes.as_slice()),
-            SadCount(ref value) => NativeEndian::write_u32(buffer, *value),
+            SadCount(ref value) => emit_u32(buffer, *value).unwrap(),
             SadHInfo(ref v) => v.emit(buffer),
             Other(ref attr) => attr.emit_value(buffer),
         }

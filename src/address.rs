@@ -2,7 +2,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-use netlink_packet_utils::{buffer, traits::*, DecodeError};
+use netlink_packet_core::{DecodeError, Emitable, Parseable};
 
 pub const XFRM_ADDRESS_LEN: usize = 16;
 

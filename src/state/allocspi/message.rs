@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::state::AllocSpiMessageBuffer;
-use crate::{UserSpiInfo, UserSpiInfoBuffer, XfrmAttrs};
-
-use netlink_packet_utils::{traits::*, DecodeError};
+use crate::{
+    state::AllocSpiMessageBuffer, UserSpiInfo, UserSpiInfoBuffer, XfrmAttrs,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct AllocSpiMessage {

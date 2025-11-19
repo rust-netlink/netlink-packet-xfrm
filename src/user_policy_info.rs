@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
-
 use core::ops::Range;
+
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
 use crate::{
     Lifetime, LifetimeBuffer, LifetimeConfig, LifetimeConfigBuffer, Selector,
     SelectorBuffer, XFRM_LIFETIME_CONFIG_LEN, XFRM_LIFETIME_LEN,
     XFRM_SELECTOR_LEN,
 };
-
-use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserPolicyInfo {

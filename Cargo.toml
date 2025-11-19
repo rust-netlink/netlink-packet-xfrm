@@ -2,7 +2,7 @@
 name = "netlink-packet-xfrm"
 version = "0.3.1"
 authors = ["Scott Zuk <zooknotic@proton.me>"]
-edition = "2018"
+edition = "2021"
 homepage = "https://github.com/rust-netlink/netlink-packet-xfrm"
 repository = "https://github.com/rust-netlink/netlink-packet-xfrm"
 keywords = ["netlink", "linux", "ipsec", "xfrm"]
@@ -11,13 +11,10 @@ readme = "README.md"
 description = "netlink xfrm packet types for IPsec"
 
 [dependencies]
-anyhow = "1.0.39"
-byteorder = "1.4.2"
-libc= "0.2.86"
-netlink-packet-core = { version = "0.7.0" }
-netlink-packet-utils = { version = "0.5.2" }
+libc= "0.2.177"
+netlink-packet-core = { version = "0.8.1" }
 
 [dev-dependencies]
-lazy_static = "1.4.0"
-netlink-proto = { version = "0.11.2" }
-netlink-sys = { version = "0.8.4" }
+lazy_static = "1.5.0"
+netlink-proto = { version = "0.12" }
+netlink-sys = { version = "0.8.7" }

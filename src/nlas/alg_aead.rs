@@ -2,7 +2,7 @@
 
 use core::ops::Range;
 
-use netlink_packet_utils::{buffer, traits::*, DecodeError};
+use netlink_packet_core::{DecodeError, Emitable, Parseable};
 
 pub const XFRM_ALG_AEAD_NAME_LEN: usize = 64;
 

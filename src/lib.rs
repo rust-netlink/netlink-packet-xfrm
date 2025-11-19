@@ -73,6 +73,9 @@ pub use user_sa_info::*;
 pub mod user_spi_info;
 pub use user_spi_info::*;
 
+#[macro_use]
+extern crate netlink_packet_core;
+
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

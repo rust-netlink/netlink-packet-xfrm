@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use crate::XFRM_INF;
+use netlink_packet_core::{DecodeError, Emitable, Parseable};
 
-use netlink_packet_utils::{buffer, traits::*, DecodeError};
+use crate::XFRM_INF;
 
 // Lifetime config
 

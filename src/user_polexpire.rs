@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
-
 use core::ops::Range;
 
-use crate::{UserPolicyInfo, UserPolicyInfoBuffer, XFRM_USER_POLICY_INFO_LEN};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use netlink_packet_utils::{buffer, traits::*, DecodeError};
+use crate::{UserPolicyInfo, UserPolicyInfoBuffer, XFRM_USER_POLICY_INFO_LEN};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserPolicyExpire {

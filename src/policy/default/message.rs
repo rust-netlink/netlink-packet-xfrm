@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::policy::{DefaultMessageBuffer, POLICY_DEFAULT_HEADER_LEN};
-use crate::{UserPolicyDefault, UserPolicyDefaultBuffer};
-
-use netlink_packet_utils::{traits::*, DecodeError};
+use crate::{
+    policy::{DefaultMessageBuffer, POLICY_DEFAULT_HEADER_LEN},
+    UserPolicyDefault, UserPolicyDefaultBuffer,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct DefaultMessage {

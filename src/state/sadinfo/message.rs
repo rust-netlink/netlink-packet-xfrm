@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
 use crate::state::{
     GetSadInfoMessageBuffer, NewSadInfoMessageBuffer, SadInfoAttrs,
     STATE_GET_SAD_INFO_HEADER_LEN, STATE_NEW_SAD_INFO_HEADER_LEN,
 };
-
-use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct NewSadInfoMessage {

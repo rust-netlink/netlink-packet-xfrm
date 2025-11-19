@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
-
 use core::ops::Range;
+
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
 use crate::{
     Address, AddressBuffer, Id, IdBuffer, Selector, SelectorBuffer,
     UserPolicyInfo, UserPolicyInfoBuffer, XFRM_ADDRESS_LEN, XFRM_ID_LEN,
     XFRM_SELECTOR_LEN, XFRM_USER_POLICY_INFO_LEN,
 };
-
-use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserAcquire {

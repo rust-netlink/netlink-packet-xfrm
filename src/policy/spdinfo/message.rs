@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
 use crate::policy::{
     GetSpdInfoMessageBuffer, NewSpdInfoMessageBuffer, SpdInfoAttrs,
     POLICY_GET_SPD_INFO_HEADER_LEN, POLICY_NEW_SPD_INFO_HEADER_LEN,
 };
-
-use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct NewSpdInfoMessage {

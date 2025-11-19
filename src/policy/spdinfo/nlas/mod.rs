@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: MIT
 
 pub mod spd_info;
+use netlink_packet_core::{
+    DecodeError, DefaultNla, Emitable, ErrorContext, Nla, NlaBuffer, Parseable,
+};
 pub use spd_info::*;
 
-use anyhow::Context;
-
 use crate::constants::*;
-
-use netlink_packet_utils::{
-    nla::{DefaultNla, Nla, NlaBuffer},
-    traits::*,
-    DecodeError,
-};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SpdInfoAttrs {

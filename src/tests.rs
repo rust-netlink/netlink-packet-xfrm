@@ -1,23 +1,26 @@
 // SPDX-License-Identifier: MIT
 
-use std::net::{Ipv4Addr, Ipv6Addr};
-use std::str::FromStr;
-
-use netlink_packet_core::{NetlinkHeader, NetlinkMessage, NetlinkPayload};
-
-use crate::{
-    constants::*, policy::FlushMessage, policy::ModifyMessage,
-    policy::SpdInfoAttrs::*, state::SadInfoAttrs::*, Address, AsyncEventId,
-    EncapTmpl, GetAsyncEventMessage, Id, Lifetime, LifetimeConfig,
-    MappingMessage, Mark, MigrateMessage, ReportMessage, Selector,
-    UserKmAddress, UserMapping, UserMigrate, UserPolicyId, UserPolicyInfo,
-    UserPolicyType, UserReport, UserSaId, UserTemplate, XfrmAttrs,
-    XfrmAttrs::*, XfrmMessage,
+use std::{
+    net::{Ipv4Addr, Ipv6Addr},
+    str::FromStr,
 };
 
-use netlink_packet_core::*;
+use netlink_packet_core::{NetlinkHeader, NetlinkMessage, NetlinkPayload, *};
 use netlink_proto::sys::protocols::NETLINK_XFRM;
 use netlink_sys::{Socket, SocketAddr};
+
+use crate::{
+    constants::*,
+    policy::{FlushMessage, ModifyMessage, SpdInfoAttrs::*},
+    state::SadInfoAttrs::*,
+    Address, AsyncEventId, EncapTmpl, GetAsyncEventMessage, Id, Lifetime,
+    LifetimeConfig, MappingMessage, Mark, MigrateMessage, ReportMessage,
+    Selector, UserKmAddress, UserMapping, UserMigrate, UserPolicyId,
+    UserPolicyInfo, UserPolicyType, UserReport, UserSaId, UserTemplate,
+    XfrmAttrs,
+    XfrmAttrs::*,
+    XfrmMessage,
+};
 
 #[test]
 fn parse_xfrm_pol_1() {

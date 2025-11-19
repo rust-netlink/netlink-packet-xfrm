@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
 use crate::{
     policy::ModifyMessageBuffer, UserPolicyInfo, UserPolicyInfoBuffer,
     XfrmAttrs,
 };
-
-use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct ModifyMessage {

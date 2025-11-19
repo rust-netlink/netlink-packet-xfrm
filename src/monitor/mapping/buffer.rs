@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use crate::XFRM_USER_MAPPING_LEN;
+use netlink_packet_core::buffer;
 
-use netlink_packet_utils::{buffer, DecodeError};
+use crate::XFRM_USER_MAPPING_LEN;
 
 pub const MONITOR_MAPPING_HEADER_LEN: usize = XFRM_USER_MAPPING_LEN;
 

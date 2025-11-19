@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use crate::XFRM_USER_ACQUIRE_LEN;
+use netlink_packet_core::{DecodeError, NlaBuffer, NlasIterator};
 
-use netlink_packet_utils::{
-    buffer,
-    nla::{NlaBuffer, NlasIterator},
-    DecodeError,
-};
+use crate::XFRM_USER_ACQUIRE_LEN;
 
 pub const MONITOR_ACQUIRE_HEADER_LEN: usize = XFRM_USER_ACQUIRE_LEN;
 

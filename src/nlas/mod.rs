@@ -38,23 +38,18 @@ pub mod user_offload;
 pub use user_offload::*;
 
 pub mod user_template;
-pub use user_template::*;
-
-use anyhow::Context;
-use byteorder::{ByteOrder, NativeEndian};
 use std::mem::size_of;
+
+use netlink_packet_core::{
+    emit_u32, emit_u64, parse_u32, parse_u64, parse_u8, DecodeError,
+    DefaultNla, Emitable, ErrorContext, Nla, NlaBuffer, Parseable,
+};
+pub use user_template::*;
 
 use crate::{
     constants::*, Address, AddressBuffer, Lifetime, LifetimeBuffer,
     UserPolicyInfo, UserPolicyInfoBuffer, UserPolicyType, UserPolicyTypeBuffer,
     UserSaInfo, UserSaInfoBuffer,
-};
-
-use netlink_packet_utils::{
-    nla::{DefaultNla, Nla, NlaBuffer},
-    parsers::*,
-    traits::*,
-    DecodeError,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -151,16 +146,16 @@ impl Nla for XfrmAttrs {
             EncapsulationTemplate(ref v) => v.emit(buffer),
             EncryptionAlg(ref v) => v.emit(buffer),
             EncryptionAlgAead(ref v) => v.emit(buffer),
-            EventTimeThreshold(ref v) => NativeEndian::write_u32(buffer, *v),
-            ExtraFlags(ref v) => NativeEndian::write_u32(buffer, *v),
-            IfId(ref v) => NativeEndian::write_u32(buffer, *v),
+            EventTimeThreshold(ref v) => emit_u32(buffer, *v).unwrap(),
+            ExtraFlags(ref v) => emit_u32(buffer, *v).unwrap(),
+            IfId(ref v) => emit_u32(buffer, *v).unwrap(),
             KmAddress(ref v) => v.emit(buffer),
-            LastUsed(ref v) => NativeEndian::write_u64(buffer, *v),
+            LastUsed(ref v) => emit_u64(buffer, *v).unwrap(),
             LifetimeBytes(ref v) => v.emit(buffer),
-            MappingTimeThreshold(ref v) => NativeEndian::write_u32(buffer, *v),
+            MappingTimeThreshold(ref v) => emit_u32(buffer, *v).unwrap(),
             Mark(ref v) => v.emit(buffer),
-            MarkMask(ref v) => NativeEndian::write_u32(buffer, *v),
-            MarkVal(ref v) => NativeEndian::write_u32(buffer, *v),
+            MarkMask(ref v) => emit_u32(buffer, *v).unwrap(),
+            MarkVal(ref v) => emit_u32(buffer, *v).unwrap(),
             Migrate(ref v) => v.emit(buffer),
             OffloadDevice(ref v) => v.emit(buffer),
             Pad() =>
@@ -171,7 +166,7 @@ impl Nla for XfrmAttrs {
             Proto(ref v) => buffer[0] = *v,
             ReplayState(ref v) => v.emit(buffer),
             ReplayStateEsn(ref v) => v.emit(buffer),
-            ReplayThreshold(ref v) => NativeEndian::write_u32(buffer, *v),
+            ReplayThreshold(ref v) => emit_u32(buffer, *v).unwrap(),
             SaInfo(ref v) => v.emit(buffer),
             SecurityContext(ref v) => v.emit(buffer),
             SrcAddr(ref v) => v.emit(buffer),
@@ -185,7 +180,7 @@ impl Nla for XfrmAttrs {
                     tmpl.emit(buf);
                 }
             }
-            TfcPadding(ref v) => NativeEndian::write_u32(buffer, *v),
+            TfcPadding(ref v) => emit_u32(buffer, *v).unwrap(),
             Unspec(ref bytes) => buffer.copy_from_slice(bytes.as_slice()),
 
             Other(ref attr) => attr.emit_value(buffer),

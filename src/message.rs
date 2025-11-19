@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use netlink_packet_core::{
+    DecodeError, Emitable, NetlinkDeserializable, NetlinkHeader,
+    NetlinkPayload, NetlinkSerializable, ParseableParametrized,
+};
+
 use crate::{
     constants::*,
     monitor::{
@@ -19,11 +24,6 @@ use crate::{
     },
     XfrmBuffer,
 };
-
-use netlink_packet_core::{
-    NetlinkDeserializable, NetlinkHeader, NetlinkPayload, NetlinkSerializable,
-};
-use netlink_packet_utils::{traits::*, DecodeError};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum XfrmMessage {

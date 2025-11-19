@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use crate::XFRM_USER_POLICY_ID_LEN;
+use netlink_packet_core::{buffer, DecodeError, NlaBuffer, NlasIterator};
 
-use netlink_packet_utils::{
-    buffer,
-    nla::{NlaBuffer, NlasIterator},
-    DecodeError,
-};
+use crate::XFRM_USER_POLICY_ID_LEN;
 
 // Same buffer handles policy delete and get messages
 

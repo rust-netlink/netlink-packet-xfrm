@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_utils::{
-    buffer,
-    nla::{NlaBuffer, NlasIterator},
-    DecodeError,
-};
+use netlink_packet_core::{buffer, DecodeError, NlaBuffer, NlasIterator};
 
 pub const STATE_NEW_SAD_INFO_HEADER_LEN: usize = 4;
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
+use netlink_packet_core::{
+    DecodeError, ErrorContext, Parseable, ParseableParametrized,
+};
 
 use crate::{
     constants::*,
@@ -35,8 +37,6 @@ use crate::{
     XfrmMessage,
 };
 
-use netlink_packet_utils::{traits::*, DecodeError};
-
 pub struct XfrmBuffer<T> {
     buffer: T,
 }
@@ -61,7 +61,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> XfrmBuffer<&'a T> {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> XfrmBuffer<&'a mut T> {
+impl<T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> XfrmBuffer<&mut T> {
     pub fn inner_mut(&mut self) -> &mut [u8] {
         self.buffer.as_mut()
     }

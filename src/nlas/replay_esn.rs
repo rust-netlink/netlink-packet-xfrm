@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use byteorder::{ByteOrder, NativeEndian};
-
-use netlink_packet_utils::{buffer, traits::*, DecodeError};
+use netlink_packet_core::{
+    buffer, emit_u32, parse_u32, DecodeError, Emitable, Parseable,
+};
 
 pub const XFRM_REPLAY_ESN_LEN: usize = 24;
 
@@ -29,10 +29,10 @@ buffer!(ReplayEsnBuffer(XFRM_REPLAY_ESN_LEN) {
 
 impl<T: AsRef<[u8]> + ?Sized> Parseable<ReplayEsnBuffer<&T>> for ReplayEsn {
     fn parse(buf: &ReplayEsnBuffer<&T>) -> Result<Self, DecodeError> {
-        if buf.bmp().len() % 4 != 0 {
+        if !buf.bmp().len().is_multiple_of(4) {
             return Err(DecodeError::from("invalid ReplayEsnBuffer bmp"));
         }
-        let bmp = buf.bmp().chunks(4).map(NativeEndian::read_u32).collect();
+        let bmp = buf.bmp().chunks(4).map(|v| parse_u32(v).unwrap()).collect();
 
         Ok(ReplayEsn {
             bmp_len: buf.bmp_len(),
@@ -60,7 +60,7 @@ impl Emitable for ReplayEsn {
         buffer.set_seq_hi(self.seq_hi);
         buffer.set_replay_window(self.replay_window);
         for (i, v) in self.bmp.iter().enumerate() {
-            NativeEndian::write_u32(&mut buffer.bmp_mut()[i * 4..], *v);
+            emit_u32(&mut buffer.bmp_mut()[i * 4..], *v).unwrap();
         }
     }
 }

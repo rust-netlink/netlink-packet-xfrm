@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
-
 use core::ops::Range;
 use std::net::IpAddr;
+
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
 use crate::{
     address::XFRM_ADDRESS_LEN,
     constants::{AF_INET, AF_INET6},
     Address, AddressBuffer,
 };
-
-use netlink_packet_utils::{buffer, traits::*, DecodeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct AddressFilter {

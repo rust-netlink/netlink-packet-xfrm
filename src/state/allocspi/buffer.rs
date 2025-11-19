@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use crate::XFRM_USER_SPI_INFO_LEN;
+use netlink_packet_core::{buffer, DecodeError, NlaBuffer, NlasIterator};
 
-use netlink_packet_utils::{
-    buffer,
-    nla::{NlaBuffer, NlasIterator},
-    DecodeError,
-};
+use crate::XFRM_USER_SPI_INFO_LEN;
 
 pub const STATE_ALLOC_SPI_HEADER_LEN: usize = XFRM_USER_SPI_INFO_LEN;
 

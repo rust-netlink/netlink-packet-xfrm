@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
-
 use core::ops::Range;
+use std::net::IpAddr;
+
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
 use crate::{
     constants::{AF_INET, AF_INET6},
@@ -11,8 +12,6 @@ use crate::{
     StatsBuffer, XFRM_ADDRESS_LEN, XFRM_ID_LEN, XFRM_LIFETIME_CONFIG_LEN,
     XFRM_LIFETIME_LEN, XFRM_SELECTOR_LEN, XFRM_STATS_LEN,
 };
-use netlink_packet_utils::{buffer, traits::*, DecodeError};
-use std::net::IpAddr;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserSaInfo {

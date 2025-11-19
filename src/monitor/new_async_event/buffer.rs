@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use crate::XFRM_ASYNC_EVENT_ID_LEN;
+use netlink_packet_core::{buffer, DecodeError, NlaBuffer, NlasIterator};
 
-use netlink_packet_utils::{
-    buffer,
-    nla::{NlaBuffer, NlasIterator},
-    DecodeError,
-};
+use crate::XFRM_ASYNC_EVENT_ID_LEN;
 
 pub const MONITOR_NEW_ASYNC_EVENT_HEADER_LEN: usize = XFRM_ASYNC_EVENT_ID_LEN;
 

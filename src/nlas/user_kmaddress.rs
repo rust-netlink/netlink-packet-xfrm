@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
-
 use core::ops::Range;
 
-use crate::{Address, AddressBuffer, XFRM_ADDRESS_LEN};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use netlink_packet_utils::{buffer, traits::*, DecodeError};
+use crate::{Address, AddressBuffer, XFRM_ADDRESS_LEN};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserKmAddress {
