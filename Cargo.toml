@@ -12,10 +12,10 @@ description = "netlink xfrm packet types for IPsec"
 
 [dependencies]
 libc= "0.2.177"
-netlink-packet-core = { version = "0.8.1" }
+netlink-packet-core = { version = "0.9.0" }
 zerocopy = { version = "0.8", features = ["derive"] }
 
 [dev-dependencies]
 lazy_static = "1.5.0"
-netlink-proto = { version = "0.12" }
-netlink-sys = { version = "0.8.7" }
+netlink-proto = { version = "0.13" }
+netlink-sys = { version = "0.9" }
