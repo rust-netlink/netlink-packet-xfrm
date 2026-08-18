@@ -1,4 +1,15 @@
 # Changelog
+## [0.5.0] - 2026-08-18
+### Breaking changes
+ - Use latest rust-netlink crates. (9c68e88)
+ - API break: use zerocopy for xfrm buffer parsing. (acfacc6)
+
+### New features
+ - N/A
+
+### Bug fixes
+ - N/A
+
 ## [0.4.0] - 2026-04-11
 ### Breaking changes
  - Use latest rust-netlink crates. (763f508)
