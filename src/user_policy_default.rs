@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_core::{DecodeError, Emitable, Parseable};
+use std::mem::size_of;
+
+use netlink_packet_core::{DecodeError, Emitable};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserPolicyDefault {
@@ -11,33 +14,59 @@ pub struct UserPolicyDefault {
 
 pub const XFRM_USER_POLICY_DEFAULT_LEN: usize = 3;
 
-buffer!(UserPolicyDefaultBuffer(XFRM_USER_POLICY_DEFAULT_LEN) {
-    input: (u8, 0),
-    forward: (u8, 1),
-    output: (u8, 2)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserPolicyDefaultBuffer {
+    input: u8,
+    forward: u8,
+    output: u8,
+}
 
-impl<T: AsRef<[u8]>> Parseable<UserPolicyDefaultBuffer<T>>
-    for UserPolicyDefault
-{
-    fn parse(buf: &UserPolicyDefaultBuffer<T>) -> Result<Self, DecodeError> {
-        Ok(UserPolicyDefault {
-            input: buf.input(),
-            forward: buf.forward(),
-            output: buf.output(),
+impl UserPolicyDefault {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) = UserPolicyDefaultBuffer::ref_from_prefix(payload)
+            .map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserPolicyDefaultBuffer>(),
+                )
+            })?;
+        Ok(Self {
+            input: raw.input,
+            forward: raw.forward,
+            output: raw.output,
         })
+    }
+}
+
+impl From<&UserPolicyDefault> for UserPolicyDefaultBuffer {
+    fn from(value: &UserPolicyDefault) -> Self {
+        Self {
+            input: value.input,
+            forward: value.forward,
+            output: value.output,
+        }
     }
 }
 
 impl Emitable for UserPolicyDefault {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_POLICY_DEFAULT_LEN
+        size_of::<UserPolicyDefaultBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserPolicyDefaultBuffer::new(buffer);
-        buffer.set_input(self.input);
-        buffer.set_forward(self.forward);
-        buffer.set_output(self.output);
+        let raw = UserPolicyDefaultBuffer::from(self);
+        buffer[..size_of::<UserPolicyDefaultBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }

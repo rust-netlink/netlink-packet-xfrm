@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     Address, AddressBuffer, UserSaId, UserSaIdBuffer, XFRM_ADDRESS_LEN,
@@ -19,59 +20,84 @@ pub struct UserMapping {
     pub new_sport: u16, // big-endian
 }
 
-const ID_FIELD: Range<usize> = 0..XFRM_USER_SA_ID_LEN;
-const REQID_FIELD: Range<usize> = ID_FIELD.end..(ID_FIELD.end + 4);
-const OLD_SADDR_FIELD: Range<usize> =
-    REQID_FIELD.end..(REQID_FIELD.end + XFRM_ADDRESS_LEN);
-const NEW_SADDR_FIELD: Range<usize> =
-    OLD_SADDR_FIELD.end..(OLD_SADDR_FIELD.end + XFRM_ADDRESS_LEN);
-const OLD_SPORT_FIELD: Range<usize> =
-    NEW_SADDR_FIELD.end..(NEW_SADDR_FIELD.end + 2);
-const NEW_SPORT_FIELD: Range<usize> =
-    OLD_SPORT_FIELD.end..(OLD_SPORT_FIELD.end + 2);
+pub const XFRM_USER_MAPPING_LEN: usize = 64;
 
-pub const XFRM_USER_MAPPING_LEN: usize = NEW_SPORT_FIELD.end; // 64
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserMappingBuffer {
+    id: [u8; XFRM_USER_SA_ID_LEN],
+    reqid: u32,
+    old_saddr: [u8; XFRM_ADDRESS_LEN],
+    new_saddr: [u8; XFRM_ADDRESS_LEN],
+    old_sport: u16,
+    new_sport: u16,
+}
 
-buffer!(UserMappingBuffer(XFRM_USER_MAPPING_LEN) {
-    id: (slice, ID_FIELD),
-    reqid: (u32, REQID_FIELD),
-    old_saddr: (slice, OLD_SADDR_FIELD),
-    new_saddr: (slice, NEW_SADDR_FIELD),
-    old_sport: (u16, OLD_SPORT_FIELD),
-    new_sport: (u16, NEW_SPORT_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserMappingBuffer<&T>> for UserMapping {
-    fn parse(buf: &UserMappingBuffer<&T>) -> Result<Self, DecodeError> {
-        let id = UserSaId::parse(&UserSaIdBuffer::new(&buf.id()))
+impl UserMapping {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserMappingBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserMappingBuffer>(),
+                )
+            })?;
+        let id = UserSaId::parse(&raw.id[..])
             .context("failed to parse user sa id")?;
-        let old_saddr = Address::parse(&AddressBuffer::new(&buf.old_saddr()))
+        let old_saddr = Address::parse(&raw.old_saddr[..])
             .context("failed to parse old saddr")?;
-        let new_saddr = Address::parse(&AddressBuffer::new(&buf.new_saddr()))
+        let new_saddr = Address::parse(&raw.new_saddr[..])
             .context("failed to parse new saddr")?;
-        Ok(UserMapping {
+        Ok(Self {
             id,
-            reqid: buf.reqid(),
+            reqid: raw.reqid,
             old_saddr,
             new_saddr,
-            old_sport: u16::from_be(buf.old_sport()),
-            new_sport: u16::from_be(buf.new_sport()),
+            old_sport: u16::from_be(raw.old_sport),
+            new_sport: u16::from_be(raw.new_sport),
         })
+    }
+}
+
+impl From<&UserMapping> for UserMappingBuffer {
+    fn from(value: &UserMapping) -> Self {
+        let mut id = [0u8; XFRM_USER_SA_ID_LEN];
+        id.copy_from_slice(UserSaIdBuffer::from(&value.id).as_bytes());
+        let mut old_saddr = [0u8; XFRM_ADDRESS_LEN];
+        old_saddr
+            .copy_from_slice(AddressBuffer::from(&value.old_saddr).as_bytes());
+        let mut new_saddr = [0u8; XFRM_ADDRESS_LEN];
+        new_saddr
+            .copy_from_slice(AddressBuffer::from(&value.new_saddr).as_bytes());
+        Self {
+            id,
+            reqid: value.reqid,
+            old_saddr,
+            new_saddr,
+            old_sport: value.old_sport.to_be(),
+            new_sport: value.new_sport.to_be(),
+        }
     }
 }
 
 impl Emitable for UserMapping {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_MAPPING_LEN
+        size_of::<UserMappingBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserMappingBuffer::new(buffer);
-        self.id.emit(buffer.id_mut());
-        buffer.set_reqid(self.reqid);
-        self.old_saddr.emit(buffer.old_saddr_mut());
-        self.new_saddr.emit(buffer.new_saddr_mut());
-        buffer.set_old_sport(self.old_sport.to_be());
-        buffer.set_new_sport(self.new_sport.to_be());
+        let raw = UserMappingBuffer::from(self);
+        buffer[..size_of::<UserMappingBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }

@@ -42,15 +42,26 @@ use std::mem::size_of;
 
 use netlink_packet_core::{
     emit_u32, emit_u64, parse_u32, parse_u64, parse_u8, DecodeError,
-    DefaultNla, Emitable, ErrorContext, Nla, NlaBuffer, Parseable,
+    DefaultNla, Emitable, ErrorContext, Nla, NlaBuffer, NlasIterator,
+    Parseable,
 };
 pub use user_template::*;
 
 use crate::{
-    constants::*, Address, AddressBuffer, Lifetime, LifetimeBuffer,
-    UserPolicyInfo, UserPolicyInfoBuffer, UserPolicyType, UserPolicyTypeBuffer,
-    UserSaInfo, UserSaInfoBuffer,
+    constants::*, Address, Lifetime, UserPolicyInfo, UserPolicyType, UserSaInfo,
 };
+
+pub(crate) struct VecXfrmAttrs(pub(crate) Vec<XfrmAttrs>);
+
+impl Parseable<[u8]> for VecXfrmAttrs {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let mut nlas = vec![];
+        for nla_buf in NlasIterator::new(buf) {
+            nlas.push(XfrmAttrs::parse(&nla_buf?)?);
+        }
+        Ok(Self(nlas))
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum XfrmAttrs {
@@ -171,12 +182,9 @@ impl Nla for XfrmAttrs {
             SecurityContext(ref v) => v.emit(buffer),
             SrcAddr(ref v) => v.emit(buffer),
             Template(ref v) => {
-                let mut it_tmpl = v.iter();
-                let mut it_buf =
-                    buffer.chunks_exact_mut(XFRM_USER_TEMPLATE_LEN);
-                while let (Some(tmpl), Some(buf)) =
-                    (it_tmpl.next(), it_buf.next())
-                {
+                let (chunks, _) =
+                    buffer.as_chunks_mut::<XFRM_USER_TEMPLATE_LEN>();
+                for (tmpl, buf) in v.iter().zip(chunks.iter_mut()) {
                     tmpl.emit(buf);
                 }
             }
@@ -235,38 +243,30 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for XfrmAttrs {
         let payload = buf.value();
         Ok(match buf.kind() {
             XFRMA_ADDRESS_FILTER => AddressFilter(
-                address_filter::AddressFilter::parse(
-                    &AddressFilterBuffer::new(payload),
-                )
-                .context("invalid XFRMA_ADDRESS_FILTER")?,
+                address_filter::AddressFilter::parse(payload)
+                    .context("invalid XFRMA_ADDRESS_FILTER")?,
             ),
             XFRMA_ALG_AUTH => AuthenticationAlg(
-                Alg::parse(&AlgBuffer::new(payload))
-                    .context("invalid XFRMA_ALG_AUTH")?,
+                Alg::parse(payload).context("invalid XFRMA_ALG_AUTH")?,
             ),
             XFRMA_ALG_AUTH_TRUNC => AuthenticationAlgTrunc(
-                AlgAuth::parse(&AlgAuthBuffer::new(payload))
+                AlgAuth::parse(payload)
                     .context("invalid XFRMA_ALG_AUTH_TRUNC")?,
             ),
             XFRMA_COADDR => CareOfAddr(
-                Address::parse(&AddressBuffer::new(payload))
-                    .context("invalid XFRMA_COADDR")?,
+                Address::parse(payload).context("invalid XFRMA_COADDR")?,
             ),
             XFRMA_ALG_COMP => CompressionAlg(
-                Alg::parse(&AlgBuffer::new(payload))
-                    .context("invalid XFRMA_ALG_COMP")?,
+                Alg::parse(payload).context("invalid XFRMA_ALG_COMP")?,
             ),
             XFRMA_ENCAP => EncapsulationTemplate(
-                EncapTmpl::parse(&EncapTmplBuffer::new(payload))
-                    .context("invalid XFRMA_ENCAP")?,
+                EncapTmpl::parse(payload).context("invalid XFRMA_ENCAP")?,
             ),
             XFRMA_ALG_CRYPT => EncryptionAlg(
-                Alg::parse(&AlgBuffer::new(payload))
-                    .context("invalid XFRMA_ALG_CRYPT")?,
+                Alg::parse(payload).context("invalid XFRMA_ALG_CRYPT")?,
             ),
             XFRMA_ALG_AEAD => EncryptionAlgAead(
-                AlgAead::parse(&AlgAeadBuffer::new(payload))
-                    .context("invalid XFRMA_ALG_AEAD")?,
+                AlgAead::parse(payload).context("invalid XFRMA_ALG_AEAD")?,
             ),
             XFRMA_ETIMER_THRESH => EventTimeThreshold(
                 parse_u32(payload).context("invalid XFRMA_ETIMER_THRESH")?,
@@ -278,23 +278,21 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for XfrmAttrs {
                 IfId(parse_u32(payload).context("invalid XFRMA_IF_ID")?)
             }
             XFRMA_KMADDRESS => KmAddress(
-                UserKmAddress::parse(&UserKmAddressBuffer::new(payload))
+                UserKmAddress::parse(payload)
                     .context("invalid XFRMA_KMADDRESS")?,
             ),
             XFRMA_LASTUSED => {
                 LastUsed(parse_u64(payload).context("invalid XFRMA_LASTUSED")?)
             }
             XFRMA_LTIME_VAL => LifetimeBytes(
-                Lifetime::parse(&LifetimeBuffer::new(payload))
-                    .context("invalid XFRMA_LTIME_VAL")?,
+                Lifetime::parse(payload).context("invalid XFRMA_LTIME_VAL")?,
             ),
             XFRMA_MTIMER_THRESH => MappingTimeThreshold(
                 parse_u32(payload).context("invalid XFRMA_MTIMER_THRESH")?,
             ),
-            XFRMA_MARK => Mark(
-                mark::Mark::parse(&MarkBuffer::new(payload))
-                    .context("invalid XFRMA_MARK")?,
-            ),
+            XFRMA_MARK => {
+                Mark(mark::Mark::parse(payload).context("invalid XFRMA_MARK")?)
+            }
             XFRMA_SET_MARK_MASK => MarkMask(
                 parse_u32(payload).context("invalid XFRMA_SET_MARK_MASK")?,
             ),
@@ -302,56 +300,50 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for XfrmAttrs {
                 MarkVal(parse_u32(payload).context("invalid XFRMA_SET_MARK")?)
             }
             XFRMA_MIGRATE => Migrate(
-                UserMigrate::parse(&UserMigrateBuffer::new(payload))
-                    .context("invalid XFRMA_MIGRATE")?,
+                UserMigrate::parse(payload).context("invalid XFRMA_MIGRATE")?,
             ),
             XFRMA_OFFLOAD_DEV => OffloadDevice(
-                UserOffloadDev::parse(&UserOffloadDevBuffer::new(payload))
+                UserOffloadDev::parse(payload)
                     .context("invalid XFRMA_OFFLOAD_DEV")?,
             ),
             XFRMA_PAD => Pad(),
             XFRMA_POLICY => PolicyInfo(
-                UserPolicyInfo::parse(&UserPolicyInfoBuffer::new(payload))
+                UserPolicyInfo::parse(payload)
                     .context("invalid XFRMA_POLICY")?,
             ),
             XFRMA_POLICY_TYPE => PolicyType(
-                UserPolicyType::parse(&UserPolicyTypeBuffer::new(payload))
+                UserPolicyType::parse(payload)
                     .context("invalid XFRMA_POLICY_TYPE")?,
             ),
             XFRMA_PROTO => {
                 Proto(parse_u8(payload).context("invalid XFRMA_PROTO")?)
             }
             XFRMA_REPLAY_VAL => ReplayState(
-                Replay::parse(&ReplayBuffer::new(payload))
-                    .context("invalid XFRMA_REPLAY_VAL")?,
+                Replay::parse(payload).context("invalid XFRMA_REPLAY_VAL")?,
             ),
             XFRMA_REPLAY_ESN_VAL => ReplayStateEsn(
-                ReplayEsn::parse(&ReplayEsnBuffer::new(payload))
+                ReplayEsn::parse(payload)
                     .context("invalid XFRMA_REPLAY_ESN_VAL")?,
             ),
             XFRMA_REPLAY_THRESH => ReplayThreshold(
                 parse_u32(payload).context("invalid XFRMA_REPLAY_THRESH")?,
             ),
-            XFRMA_SA => SaInfo(
-                UserSaInfo::parse(&UserSaInfoBuffer::new(payload))
-                    .context("invalid XFRMA_SA")?,
-            ),
+            XFRMA_SA => {
+                SaInfo(UserSaInfo::parse(payload).context("invalid XFRMA_SA")?)
+            }
             XFRMA_SEC_CTX => SecurityContext(
-                SecurityCtx::parse(&SecurityCtxBuffer::new(payload))
-                    .context("invalid XFRMA_SEC_CTX")?,
+                SecurityCtx::parse(payload).context("invalid XFRMA_SEC_CTX")?,
             ),
             XFRMA_SRCADDR => SrcAddr(
-                Address::parse(&AddressBuffer::new(payload))
-                    .context("invalid XFRMA_COADDR")?,
+                Address::parse(payload).context("invalid XFRMA_COADDR")?,
             ),
             XFRMA_TMPL => {
                 let mut tmpls: Vec<UserTemplate> = vec![];
-                let it = payload.chunks_exact(XFRM_USER_TEMPLATE_LEN);
+                let (chunks, _) = payload.as_chunks::<XFRM_USER_TEMPLATE_LEN>();
 
-                for t in it {
+                for t in chunks {
                     let tmpl =
-                        UserTemplate::parse(&UserTemplateBuffer::new(&t))
-                            .context("invalid XFRMA_TMPL")?;
+                        UserTemplate::parse(t).context("invalid XFRMA_TMPL")?;
                     tmpls.push(tmpl);
                 }
                 Template(tmpls)

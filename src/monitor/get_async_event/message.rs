@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::{AsyncEventId, AsyncEventIdBuffer, GetAsyncEventMessageBuffer};
+use crate::{AsyncEventId, AsyncEventIdBuffer};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct GetAsyncEventMessage {
@@ -19,14 +21,10 @@ impl Emitable for GetAsyncEventMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<GetAsyncEventMessageBuffer<&'a T>>
-    for GetAsyncEventMessage
-{
-    fn parse(
-        buf: &GetAsyncEventMessageBuffer<&'a T>,
-    ) -> Result<Self, DecodeError> {
-        let id = AsyncEventId::parse(&AsyncEventIdBuffer::new(&buf.id()))
+impl Parseable<[u8]> for GetAsyncEventMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let id = AsyncEventId::parse(&buf[..size_of::<AsyncEventIdBuffer>()])
             .context("failed to parse monitor get async event id")?;
-        Ok(GetAsyncEventMessage { id })
+        Ok(Self { id })
     }
 }

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use core::mem::size_of;
 
-use crate::policy::{
-    GetSpdInfoMessageBuffer, NewSpdInfoMessageBuffer, SpdInfoAttrs,
-    POLICY_GET_SPD_INFO_HEADER_LEN, POLICY_NEW_SPD_INFO_HEADER_LEN,
+use netlink_packet_core::{
+    emit_u32, parse_u32, DecodeError, Emitable, ErrorContext, Parseable,
 };
+
+use crate::policy::spdinfo::{nlas::VecSpdInfoAttrs, SpdInfoAttrs};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct NewSpdInfoMessage {
@@ -15,41 +16,25 @@ pub struct NewSpdInfoMessage {
 
 impl Emitable for NewSpdInfoMessage {
     fn buffer_len(&self) -> usize {
-        POLICY_NEW_SPD_INFO_HEADER_LEN + self.nlas.as_slice().buffer_len()
+        size_of::<u32>() + self.nlas.as_slice().buffer_len()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = NewSpdInfoMessageBuffer::new(buffer);
-        buffer.set_flags(self.flags);
-        self.nlas.as_slice().emit(buffer.attributes_mut());
+        emit_u32(&mut buffer[..size_of::<u32>()], self.flags).unwrap();
+        self.nlas.as_slice().emit(&mut buffer[size_of::<u32>()..]);
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<NewSpdInfoMessageBuffer<&'a T>>
-    for NewSpdInfoMessage
-{
-    fn parse(
-        buf: &NewSpdInfoMessageBuffer<&'a T>,
-    ) -> Result<Self, DecodeError> {
-        Ok(NewSpdInfoMessage {
-            flags: buf.flags(),
-            nlas: Vec::<SpdInfoAttrs>::parse(buf)
-                .context("failed to parse policy new SPD info message NLAs")?,
+impl Parseable<[u8]> for NewSpdInfoMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let flags = parse_u32(&buf[..size_of::<u32>()])
+            .context("failed to parse policy new SPD info message flags")?;
+        Ok(Self {
+            flags,
+            nlas: VecSpdInfoAttrs::parse(&buf[size_of::<u32>()..])
+                .context("failed to parse policy new SPD info message NLAs")?
+                .0,
         })
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<NewSpdInfoMessageBuffer<&'a T>>
-    for Vec<SpdInfoAttrs>
-{
-    fn parse(
-        buf: &NewSpdInfoMessageBuffer<&'a T>,
-    ) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(SpdInfoAttrs::parse(&nla_buf?)?);
-        }
-        Ok(nlas)
     }
 }
 
@@ -60,19 +45,19 @@ pub struct GetSpdInfoMessage {
 
 impl Emitable for GetSpdInfoMessage {
     fn buffer_len(&self) -> usize {
-        POLICY_GET_SPD_INFO_HEADER_LEN
+        size_of::<u32>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = GetSpdInfoMessageBuffer::new(buffer);
-        buffer.set_flags(self.flags);
+        emit_u32(&mut buffer[..size_of::<u32>()], self.flags).unwrap();
     }
 }
 
-impl<T: AsRef<[u8]>> Parseable<GetSpdInfoMessageBuffer<T>>
-    for GetSpdInfoMessage
-{
-    fn parse(buf: &GetSpdInfoMessageBuffer<T>) -> Result<Self, DecodeError> {
-        Ok(GetSpdInfoMessage { flags: buf.flags() })
+impl Parseable<[u8]> for GetSpdInfoMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        Ok(Self {
+            flags: parse_u32(&buf[..size_of::<u32>()])
+                .context("failed to parse policy get SPD info message flags")?,
+        })
     }
 }

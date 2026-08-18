@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{Selector, SelectorBuffer, XFRM_SELECTOR_LEN};
 
@@ -12,35 +13,64 @@ pub struct UserReport {
     pub selector: Selector,
 }
 
-const SELECTOR_FIELD: Range<usize> = 4..(4 + XFRM_SELECTOR_LEN);
+pub const XFRM_USER_REPORT_LEN: usize = 60;
 
-pub const XFRM_USER_REPORT_LEN: usize = SELECTOR_FIELD.end; // 60 (not rounded up to 64)
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserReportBuffer {
+    proto: u8,
+    padding: [u8; 3],
+    selector: [u8; XFRM_SELECTOR_LEN],
+}
 
-buffer!(UserReportBuffer(XFRM_USER_REPORT_LEN) {
-    proto: (u8, 0),
-    /* 3 bytes padding */
-    selector: (slice, SELECTOR_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserReportBuffer<&T>> for UserReport {
-    fn parse(buf: &UserReportBuffer<&T>) -> Result<Self, DecodeError> {
-        let selector = Selector::parse(&SelectorBuffer::new(&buf.selector()))
+impl UserReport {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserReportBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserReportBuffer>(),
+                )
+            })?;
+        let selector = Selector::parse(&raw.selector[..])
             .context("failed to parse selector")?;
-        Ok(UserReport {
-            proto: buf.proto(),
+        Ok(Self {
+            proto: raw.proto,
             selector,
         })
     }
 }
 
+impl From<&UserReport> for UserReportBuffer {
+    fn from(value: &UserReport) -> Self {
+        let mut selector = [0u8; XFRM_SELECTOR_LEN];
+        selector
+            .copy_from_slice(SelectorBuffer::from(&value.selector).as_bytes());
+        Self {
+            proto: value.proto,
+            padding: [0; 3],
+            selector,
+        }
+    }
+}
+
 impl Emitable for UserReport {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_REPORT_LEN
+        size_of::<UserReportBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserReportBuffer::new(buffer);
-        buffer.set_proto(self.proto);
-        self.selector.emit(buffer.selector_mut());
+        let raw = UserReportBuffer::from(self);
+        buffer[..size_of::<UserReportBuffer>()].copy_from_slice(raw.as_bytes());
     }
 }

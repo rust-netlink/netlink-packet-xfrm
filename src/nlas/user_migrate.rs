@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{Address, AddressBuffer, XFRM_ADDRESS_LEN};
 
@@ -20,77 +21,102 @@ pub struct UserMigrate {
     pub new_family: u16,
 }
 
-const OLD_DADDR_FIELD: Range<usize> = 0..XFRM_ADDRESS_LEN;
-const OLD_SADDR_FIELD: Range<usize> =
-    OLD_DADDR_FIELD.end..(OLD_DADDR_FIELD.end + XFRM_ADDRESS_LEN);
-const NEW_DADDR_FIELD: Range<usize> =
-    OLD_SADDR_FIELD.end..(OLD_SADDR_FIELD.end + XFRM_ADDRESS_LEN);
-const NEW_SADDR_FIELD: Range<usize> =
-    NEW_DADDR_FIELD.end..(NEW_DADDR_FIELD.end + XFRM_ADDRESS_LEN);
-const PROTO_FIELD: usize = NEW_SADDR_FIELD.end;
-const MODE_FIELD: usize = PROTO_FIELD + 1;
-const RESERVED_FIELD: Range<usize> = (MODE_FIELD + 1)..(MODE_FIELD + 1 + 2);
-const REQID_FIELD: Range<usize> = RESERVED_FIELD.end..(RESERVED_FIELD.end + 4);
-const OLD_FAMILY_FIELD: Range<usize> = REQID_FIELD.end..(REQID_FIELD.end + 2);
-const NEW_FAMILY_FIELD: Range<usize> =
-    OLD_FAMILY_FIELD.end..(OLD_FAMILY_FIELD.end + 2);
+pub const XFRM_USER_MIGRATE_LEN: usize = 76;
 
-pub const XFRM_USER_MIGRATE_LEN: usize = NEW_FAMILY_FIELD.end; // 76
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserMigrateBuffer {
+    old_daddr: [u8; XFRM_ADDRESS_LEN],
+    old_saddr: [u8; XFRM_ADDRESS_LEN],
+    new_daddr: [u8; XFRM_ADDRESS_LEN],
+    new_saddr: [u8; XFRM_ADDRESS_LEN],
+    proto: u8,
+    mode: u8,
+    reserved: u16,
+    reqid: u32,
+    old_family: u16,
+    new_family: u16,
+}
 
-buffer!(UserMigrateBuffer(XFRM_USER_MIGRATE_LEN) {
-    old_daddr: (slice, OLD_DADDR_FIELD),
-    old_saddr: (slice, OLD_SADDR_FIELD),
-    new_daddr: (slice, NEW_DADDR_FIELD),
-    new_saddr: (slice, NEW_SADDR_FIELD),
-    proto: (u8, PROTO_FIELD),
-    mode: (u8, MODE_FIELD),
-    reserved: (u16, RESERVED_FIELD),
-    reqid: (u32, REQID_FIELD),
-    old_family: (u16, OLD_FAMILY_FIELD),
-    new_family: (u16, NEW_FAMILY_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserMigrateBuffer<&T>> for UserMigrate {
-    fn parse(buf: &UserMigrateBuffer<&T>) -> Result<Self, DecodeError> {
-        let old_daddr = Address::parse(&AddressBuffer::new(&buf.old_daddr()))
+impl UserMigrate {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserMigrateBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserMigrateBuffer>(),
+                )
+            })?;
+        let old_daddr = Address::parse(&raw.old_daddr[..])
             .context("failed to parse old_daddr address")?;
-        let old_saddr = Address::parse(&AddressBuffer::new(&buf.old_saddr()))
+        let old_saddr = Address::parse(&raw.old_saddr[..])
             .context("failed to parse old_saddr address")?;
-        let new_daddr = Address::parse(&AddressBuffer::new(&buf.new_daddr()))
+        let new_daddr = Address::parse(&raw.new_daddr[..])
             .context("failed to parse new_daddr address")?;
-        let new_saddr = Address::parse(&AddressBuffer::new(&buf.new_saddr()))
+        let new_saddr = Address::parse(&raw.new_saddr[..])
             .context("failed to parse new_saddr address")?;
-        Ok(UserMigrate {
+        Ok(Self {
             old_daddr,
             old_saddr,
             new_daddr,
             new_saddr,
-            proto: buf.proto(),
-            mode: buf.mode(),
-            reserved: buf.reserved(),
-            reqid: buf.reqid(),
-            old_family: buf.old_family(),
-            new_family: buf.new_family(),
+            proto: raw.proto,
+            mode: raw.mode,
+            reserved: raw.reserved,
+            reqid: raw.reqid,
+            old_family: raw.old_family,
+            new_family: raw.new_family,
         })
+    }
+}
+
+impl From<&UserMigrate> for UserMigrateBuffer {
+    fn from(value: &UserMigrate) -> Self {
+        let mut old_daddr = [0u8; XFRM_ADDRESS_LEN];
+        old_daddr
+            .copy_from_slice(AddressBuffer::from(&value.old_daddr).as_bytes());
+        let mut old_saddr = [0u8; XFRM_ADDRESS_LEN];
+        old_saddr
+            .copy_from_slice(AddressBuffer::from(&value.old_saddr).as_bytes());
+        let mut new_daddr = [0u8; XFRM_ADDRESS_LEN];
+        new_daddr
+            .copy_from_slice(AddressBuffer::from(&value.new_daddr).as_bytes());
+        let mut new_saddr = [0u8; XFRM_ADDRESS_LEN];
+        new_saddr
+            .copy_from_slice(AddressBuffer::from(&value.new_saddr).as_bytes());
+        Self {
+            old_daddr,
+            old_saddr,
+            new_daddr,
+            new_saddr,
+            proto: value.proto,
+            mode: value.mode,
+            reserved: value.reserved,
+            reqid: value.reqid,
+            old_family: value.old_family,
+            new_family: value.new_family,
+        }
     }
 }
 
 impl Emitable for UserMigrate {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_MIGRATE_LEN
+        size_of::<UserMigrateBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserMigrateBuffer::new(buffer);
-        self.old_daddr.emit(buffer.old_daddr_mut());
-        self.old_saddr.emit(buffer.old_saddr_mut());
-        self.new_daddr.emit(buffer.new_daddr_mut());
-        self.new_saddr.emit(buffer.new_saddr_mut());
-        buffer.set_proto(self.proto);
-        buffer.set_mode(self.mode);
-        buffer.set_reserved(self.reserved);
-        buffer.set_reqid(self.reqid);
-        buffer.set_old_family(self.old_family);
-        buffer.set_new_family(self.new_family);
+        let raw = UserMigrateBuffer::from(self);
+        buffer[..size_of::<UserMigrateBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }

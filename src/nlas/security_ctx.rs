@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_core::{DecodeError, Emitable, Parseable};
+use std::mem::size_of;
+
+use netlink_packet_core::{DecodeError, Emitable};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::constants::*;
 
@@ -16,14 +19,25 @@ pub struct SecurityCtx {
 
 pub const XFRM_SEC_CTX_HEADER_LEN: usize = 8;
 
-buffer!(SecurityCtxBuffer(XFRM_SEC_CTX_HEADER_LEN) {
-    len: (u16, 0..2),
-    exttype: (u16, 2..4),
-    ctx_alg: (u8, 4),
-    ctx_doi: (u8, 5),
-    ctx_len: (u16, 6..8),
-    ctx_str: (slice, 8..)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct SecurityCtxBuffer {
+    len: u16,
+    exttype: u16,
+    ctx_alg: u8,
+    ctx_doi: u8,
+    ctx_len: u16,
+}
 
 impl Default for SecurityCtx {
     fn default() -> Self {
@@ -38,32 +52,48 @@ impl Default for SecurityCtx {
     }
 }
 
-impl<T: AsRef<[u8]> + ?Sized> Parseable<SecurityCtxBuffer<&T>> for SecurityCtx {
-    fn parse(buf: &SecurityCtxBuffer<&T>) -> Result<Self, DecodeError> {
-        Ok(SecurityCtx {
-            len: buf.len(),
-            exttype: buf.exttype(),
-            ctx_alg: buf.ctx_alg(),
-            ctx_doi: buf.ctx_doi(),
-            ctx_len: buf.ctx_len(),
-            ctx_str: buf.ctx_str().to_vec(),
+impl SecurityCtx {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, ctx_str) = SecurityCtxBuffer::ref_from_prefix(payload)
+            .map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<SecurityCtxBuffer>(),
+                )
+            })?;
+        Ok(Self {
+            len: raw.len,
+            exttype: raw.exttype,
+            ctx_alg: raw.ctx_alg,
+            ctx_doi: raw.ctx_doi,
+            ctx_len: raw.ctx_len,
+            ctx_str: ctx_str.to_vec(),
         })
+    }
+}
+
+impl From<&SecurityCtx> for SecurityCtxBuffer {
+    fn from(value: &SecurityCtx) -> Self {
+        Self {
+            len: value.len,
+            exttype: value.exttype,
+            ctx_alg: value.ctx_alg,
+            ctx_doi: value.ctx_doi,
+            ctx_len: value.ctx_len,
+        }
     }
 }
 
 impl Emitable for SecurityCtx {
     fn buffer_len(&self) -> usize {
-        XFRM_SEC_CTX_HEADER_LEN + self.ctx_str.len()
+        size_of::<SecurityCtxBuffer>() + self.ctx_str.len()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = SecurityCtxBuffer::new(buffer);
-        buffer.set_len(self.len);
-        buffer.set_exttype(self.exttype);
-        buffer.set_ctx_alg(self.ctx_alg);
-        buffer.set_ctx_doi(self.ctx_doi);
-        buffer.set_ctx_len(self.ctx_len);
-        buffer.ctx_str_mut().clone_from_slice(&self.ctx_str[..]);
+        let raw = SecurityCtxBuffer::from(self);
+        let header_len = size_of::<SecurityCtxBuffer>();
+        buffer[..header_len].copy_from_slice(raw.as_bytes());
+        buffer[header_len..].copy_from_slice(&self.ctx_str);
     }
 }
 

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_core::{DecodeError, Emitable, Parseable};
+use std::mem::size_of;
+
+use netlink_packet_core::{DecodeError, Emitable};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserOffloadDev {
@@ -10,29 +13,58 @@ pub struct UserOffloadDev {
 
 pub const XFRM_USER_OFFLOAD_DEV_LEN: usize = 8;
 
-buffer!(UserOffloadDevBuffer(XFRM_USER_OFFLOAD_DEV_LEN) {
-    ifindex: (i32, 0..4),
-    flags: (u8, 4)
-    /* 3 bytes padding */
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserOffloadDevBuffer {
+    ifindex: i32,
+    flags: u8,
+    padding: [u8; 3],
+}
 
-impl<T: AsRef<[u8]>> Parseable<UserOffloadDevBuffer<T>> for UserOffloadDev {
-    fn parse(buf: &UserOffloadDevBuffer<T>) -> Result<Self, DecodeError> {
-        Ok(UserOffloadDev {
-            ifindex: buf.ifindex(),
-            flags: buf.flags(),
+impl UserOffloadDev {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserOffloadDevBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserOffloadDevBuffer>(),
+                )
+            })?;
+        Ok(Self {
+            ifindex: raw.ifindex,
+            flags: raw.flags,
         })
+    }
+}
+
+impl From<&UserOffloadDev> for UserOffloadDevBuffer {
+    fn from(value: &UserOffloadDev) -> Self {
+        Self {
+            ifindex: value.ifindex,
+            flags: value.flags,
+            padding: [0; 3],
+        }
     }
 }
 
 impl Emitable for UserOffloadDev {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_OFFLOAD_DEV_LEN
+        size_of::<UserOffloadDevBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserOffloadDevBuffer::new(buffer);
-        buffer.set_ifindex(self.ifindex);
-        buffer.set_flags(self.flags);
+        let raw = UserOffloadDevBuffer::from(self);
+        buffer[..size_of::<UserOffloadDevBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }

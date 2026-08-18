@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{UserPolicyInfo, UserPolicyInfoBuffer, XFRM_USER_POLICY_INFO_LEN};
 
@@ -12,38 +13,64 @@ pub struct UserPolicyExpire {
     pub hard: u8,
 }
 
-const POL_FIELD: Range<usize> = 0..XFRM_USER_POLICY_INFO_LEN;
-const HARD_FIELD: usize = POL_FIELD.end;
+pub const XFRM_USER_POLICY_EXPIRE_LEN: usize = 176;
 
-pub const XFRM_USER_POLICY_EXPIRE_LEN: usize =
-    (XFRM_USER_POLICY_INFO_LEN + 1 + 7) & !7; // 176
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserPolicyExpireBuffer {
+    pol: [u8; XFRM_USER_POLICY_INFO_LEN],
+    hard: u8,
+    padding: [u8; 7],
+}
 
-buffer!(UserPolicyExpireBuffer(XFRM_USER_POLICY_EXPIRE_LEN) {
-    pol: (slice, POL_FIELD),
-    hard: (u8, HARD_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserPolicyExpireBuffer<&T>>
-    for UserPolicyExpire
-{
-    fn parse(buf: &UserPolicyExpireBuffer<&T>) -> Result<Self, DecodeError> {
-        let pol = UserPolicyInfo::parse(&UserPolicyInfoBuffer::new(&buf.pol()))
+impl UserPolicyExpire {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) = UserPolicyExpireBuffer::ref_from_prefix(payload)
+            .map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserPolicyExpireBuffer>(),
+                )
+            })?;
+        let pol = UserPolicyInfo::parse(&raw.pol[..])
             .context("failed to parse user policy info")?;
-        Ok(UserPolicyExpire {
+        Ok(Self {
             pol,
-            hard: buf.hard(),
+            hard: raw.hard,
         })
+    }
+}
+
+impl From<&UserPolicyExpire> for UserPolicyExpireBuffer {
+    fn from(value: &UserPolicyExpire) -> Self {
+        let mut pol = [0u8; XFRM_USER_POLICY_INFO_LEN];
+        pol.copy_from_slice(UserPolicyInfoBuffer::from(&value.pol).as_bytes());
+        Self {
+            pol,
+            hard: value.hard,
+            padding: [0; 7],
+        }
     }
 }
 
 impl Emitable for UserPolicyExpire {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_POLICY_EXPIRE_LEN
+        size_of::<UserPolicyExpireBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserPolicyExpireBuffer::new(buffer);
-        self.pol.emit(buffer.pol_mut());
-        buffer.set_hard(self.hard);
+        let raw = UserPolicyExpireBuffer::from(self);
+        buffer[..size_of::<UserPolicyExpireBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }

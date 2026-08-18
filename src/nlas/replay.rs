@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_core::{DecodeError, Emitable, Parseable};
+use std::mem::size_of;
+
+use netlink_packet_core::{DecodeError, Emitable};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct Replay {
@@ -11,31 +14,58 @@ pub struct Replay {
 
 pub const XFRM_REPLAY_LEN: usize = 12;
 
-buffer!(ReplayBuffer(XFRM_REPLAY_LEN) {
-    oseq: (u32, 0..4),
-    seq: (u32, 4..8),
-    bitmap: (u32, 8..12)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct ReplayBuffer {
+    oseq: u32,
+    seq: u32,
+    bitmap: u32,
+}
 
-impl<T: AsRef<[u8]> + ?Sized> Parseable<ReplayBuffer<&T>> for Replay {
-    fn parse(buf: &ReplayBuffer<&T>) -> Result<Self, DecodeError> {
-        Ok(Replay {
-            oseq: buf.oseq(),
-            seq: buf.seq(),
-            bitmap: buf.bitmap(),
+impl Replay {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            ReplayBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<ReplayBuffer>(),
+                )
+            })?;
+        Ok(Self {
+            oseq: raw.oseq,
+            seq: raw.seq,
+            bitmap: raw.bitmap,
         })
+    }
+}
+
+impl From<&Replay> for ReplayBuffer {
+    fn from(value: &Replay) -> Self {
+        Self {
+            oseq: value.oseq,
+            seq: value.seq,
+            bitmap: value.bitmap,
+        }
     }
 }
 
 impl Emitable for Replay {
     fn buffer_len(&self) -> usize {
-        XFRM_REPLAY_LEN
+        size_of::<ReplayBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = ReplayBuffer::new(buffer);
-        buffer.set_oseq(self.oseq);
-        buffer.set_seq(self.seq);
-        buffer.set_bitmap(self.bitmap);
+        let raw = ReplayBuffer::from(self);
+        buffer[..size_of::<ReplayBuffer>()].copy_from_slice(raw.as_bytes());
     }
 }

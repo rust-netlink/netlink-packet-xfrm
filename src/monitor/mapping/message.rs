@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::{MappingMessageBuffer, UserMapping, UserMappingBuffer};
+use crate::{UserMapping, UserMappingBuffer};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct MappingMessage {
@@ -19,12 +21,10 @@ impl Emitable for MappingMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<MappingMessageBuffer<&'a T>>
-    for MappingMessage
-{
-    fn parse(buf: &MappingMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let map = UserMapping::parse(&UserMappingBuffer::new(&buf.map()))
+impl Parseable<[u8]> for MappingMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let map = UserMapping::parse(&buf[..size_of::<UserMappingBuffer>()])
             .context("failed to parse monitor mapping message info")?;
-        Ok(MappingMessage { map })
+        Ok(Self { map })
     }
 }

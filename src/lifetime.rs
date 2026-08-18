@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_core::{DecodeError, Emitable, Parseable};
+use core::mem::size_of;
+
+use netlink_packet_core::{DecodeError, Emitable};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::XFRM_INF;
 
@@ -20,16 +23,28 @@ pub struct LifetimeConfig {
 
 pub const XFRM_LIFETIME_CONFIG_LEN: usize = 64;
 
-buffer!(LifetimeConfigBuffer(XFRM_LIFETIME_CONFIG_LEN) {
-    soft_byte_limit: (u64, 0..8),
-    hard_byte_limit: (u64, 8..16),
-    soft_packet_limit: (u64, 16..24),
-    hard_packet_limit: (u64, 24..32),
-    soft_add_expires_seconds: (u64, 32..40),
-    hard_add_expires_seconds: (u64, 40..48),
-    soft_use_expires_seconds: (u64, 48..56),
-    hard_use_expires_seconds: (u64, 56..64)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct LifetimeConfigBuffer {
+    soft_byte_limit: u64,
+    hard_byte_limit: u64,
+    soft_packet_limit: u64,
+    hard_packet_limit: u64,
+    soft_add_expires_seconds: u64,
+    hard_add_expires_seconds: u64,
+    soft_use_expires_seconds: u64,
+    hard_use_expires_seconds: u64,
+}
 
 impl Default for LifetimeConfig {
     fn default() -> Self {
@@ -46,36 +61,52 @@ impl Default for LifetimeConfig {
     }
 }
 
-impl<T: AsRef<[u8]>> Parseable<LifetimeConfigBuffer<T>> for LifetimeConfig {
-    fn parse(buf: &LifetimeConfigBuffer<T>) -> Result<Self, DecodeError> {
-        Ok(LifetimeConfig {
-            soft_byte_limit: buf.soft_byte_limit(),
-            hard_byte_limit: buf.hard_byte_limit(),
-            soft_packet_limit: buf.soft_packet_limit(),
-            hard_packet_limit: buf.hard_packet_limit(),
-            soft_add_expires_seconds: buf.soft_add_expires_seconds(),
-            hard_add_expires_seconds: buf.hard_add_expires_seconds(),
-            soft_use_expires_seconds: buf.soft_use_expires_seconds(),
-            hard_use_expires_seconds: buf.hard_use_expires_seconds(),
+impl LifetimeConfig {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            LifetimeConfigBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<LifetimeConfigBuffer>(),
+                )
+            })?;
+        Ok(Self {
+            soft_byte_limit: raw.soft_byte_limit,
+            hard_byte_limit: raw.hard_byte_limit,
+            soft_packet_limit: raw.soft_packet_limit,
+            hard_packet_limit: raw.hard_packet_limit,
+            soft_add_expires_seconds: raw.soft_add_expires_seconds,
+            hard_add_expires_seconds: raw.hard_add_expires_seconds,
+            soft_use_expires_seconds: raw.soft_use_expires_seconds,
+            hard_use_expires_seconds: raw.hard_use_expires_seconds,
         })
+    }
+}
+
+impl From<&LifetimeConfig> for LifetimeConfigBuffer {
+    fn from(value: &LifetimeConfig) -> Self {
+        Self {
+            soft_byte_limit: value.soft_byte_limit,
+            hard_byte_limit: value.hard_byte_limit,
+            soft_packet_limit: value.soft_packet_limit,
+            hard_packet_limit: value.hard_packet_limit,
+            soft_add_expires_seconds: value.soft_add_expires_seconds,
+            hard_add_expires_seconds: value.hard_add_expires_seconds,
+            soft_use_expires_seconds: value.soft_use_expires_seconds,
+            hard_use_expires_seconds: value.hard_use_expires_seconds,
+        }
     }
 }
 
 impl Emitable for LifetimeConfig {
     fn buffer_len(&self) -> usize {
-        XFRM_LIFETIME_CONFIG_LEN
+        size_of::<LifetimeConfigBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = LifetimeConfigBuffer::new(buffer);
-        buffer.set_soft_byte_limit(self.soft_byte_limit);
-        buffer.set_hard_byte_limit(self.hard_byte_limit);
-        buffer.set_soft_packet_limit(self.soft_packet_limit);
-        buffer.set_hard_packet_limit(self.hard_packet_limit);
-        buffer.set_soft_add_expires_seconds(self.soft_add_expires_seconds);
-        buffer.set_hard_add_expires_seconds(self.hard_add_expires_seconds);
-        buffer.set_soft_use_expires_seconds(self.soft_use_expires_seconds);
-        buffer.set_hard_use_expires_seconds(self.hard_use_expires_seconds);
+        let raw = LifetimeConfigBuffer::from(self);
+        buffer[..size_of::<LifetimeConfigBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }
 
@@ -91,34 +122,61 @@ pub struct Lifetime {
 
 pub const XFRM_LIFETIME_LEN: usize = 32;
 
-buffer!(LifetimeBuffer(XFRM_LIFETIME_LEN) {
-    bytes: (u64, 0..8),
-    packets: (u64, 8..16),
-    add_time: (u64, 16..24),
-    use_time: (u64, 24..32)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct LifetimeBuffer {
+    bytes: u64,
+    packets: u64,
+    add_time: u64,
+    use_time: u64,
+}
 
-impl<T: AsRef<[u8]>> Parseable<LifetimeBuffer<T>> for Lifetime {
-    fn parse(buf: &LifetimeBuffer<T>) -> Result<Self, DecodeError> {
-        Ok(Lifetime {
-            bytes: buf.bytes(),
-            packets: buf.packets(),
-            add_time: buf.add_time(),
-            use_time: buf.use_time(),
+impl Lifetime {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            LifetimeBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<LifetimeBuffer>(),
+                )
+            })?;
+        Ok(Self {
+            bytes: raw.bytes,
+            packets: raw.packets,
+            add_time: raw.add_time,
+            use_time: raw.use_time,
         })
+    }
+}
+
+impl From<&Lifetime> for LifetimeBuffer {
+    fn from(value: &Lifetime) -> Self {
+        Self {
+            bytes: value.bytes,
+            packets: value.packets,
+            add_time: value.add_time,
+            use_time: value.use_time,
+        }
     }
 }
 
 impl Emitable for Lifetime {
     fn buffer_len(&self) -> usize {
-        XFRM_LIFETIME_LEN
+        size_of::<LifetimeBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = LifetimeBuffer::new(buffer);
-        buffer.set_bytes(self.bytes);
-        buffer.set_packets(self.packets);
-        buffer.set_add_time(self.add_time);
-        buffer.set_use_time(self.use_time);
+        let raw = LifetimeBuffer::from(self);
+        buffer[..size_of::<LifetimeBuffer>()].copy_from_slice(raw.as_bytes());
     }
 }

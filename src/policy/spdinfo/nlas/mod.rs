@@ -2,11 +2,24 @@
 
 pub mod spd_info;
 use netlink_packet_core::{
-    DecodeError, DefaultNla, Emitable, ErrorContext, Nla, NlaBuffer, Parseable,
+    DecodeError, DefaultNla, Emitable, ErrorContext, Nla, NlaBuffer,
+    NlasIterator, Parseable,
 };
 pub use spd_info::*;
 
 use crate::constants::*;
+
+pub(crate) struct VecSpdInfoAttrs(pub(crate) Vec<SpdInfoAttrs>);
+
+impl Parseable<[u8]> for VecSpdInfoAttrs {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let mut nlas = vec![];
+        for nla_buf in NlasIterator::new(buf) {
+            nlas.push(SpdInfoAttrs::parse(&nla_buf?)?);
+        }
+        Ok(Self(nlas))
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SpdInfoAttrs {
@@ -65,19 +78,19 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for SpdInfoAttrs {
         Ok(match buf.kind() {
             XFRMA_SPD_UNSPEC => Unspec(payload.to_vec()),
             XFRMA_SPD_INFO => SpdInfo(
-                spd_info::SpdInfo::parse(&SpdInfoBuffer::new(payload))
+                spd_info::SpdInfo::parse(payload)
                     .context("invalid XFRMA_SPD_INFO")?,
             ),
             XFRMA_SPD_HINFO => SpdHInfo(
-                spd_info::SpdHInfo::parse(&SpdHInfoBuffer::new(payload))
+                spd_info::SpdHInfo::parse(payload)
                     .context("invalid XFRMA_SPD_HINFO")?,
             ),
             XFRMA_SPD_IPV4_HTHRESH => SpdIpv4HThresh(
-                spd_info::SpdHThresh::parse(&SpdHThreshBuffer::new(payload))
+                spd_info::SpdHThresh::parse(payload)
                     .context("invalid XFRMA_SPD_IPV4_HTHRESH")?,
             ),
             XFRMA_SPD_IPV6_HTHRESH => SpdIpv6HThresh(
-                spd_info::SpdHThresh::parse(&SpdHThreshBuffer::new(payload))
+                spd_info::SpdHThresh::parse(payload)
                     .context("invalid XFRMA_SPD_IPV6_HTHRESH")?,
             ),
             kind => Other(

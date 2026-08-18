@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     constants::IPPROTO_COMP, UserSaInfo, UserSaInfoBuffer,
@@ -16,17 +17,25 @@ pub struct UserSpiInfo {
     pub max: u32,
 }
 
-const INFO_FIELD: Range<usize> = 0..XFRM_USER_SA_INFO_LEN;
-const MIN_FIELD: Range<usize> = INFO_FIELD.end..(INFO_FIELD.end + 4);
-const MAX_FIELD: Range<usize> = MIN_FIELD.end..(MIN_FIELD.end + 4);
+pub const XFRM_USER_SPI_INFO_LEN: usize = 232;
 
-pub const XFRM_USER_SPI_INFO_LEN: usize = (MAX_FIELD.end + 7) & !7; // 232
-
-buffer!(UserSpiInfoBuffer(XFRM_USER_SPI_INFO_LEN) {
-    info: (slice, INFO_FIELD),
-    min: (u32, MIN_FIELD),
-    max: (u32, MAX_FIELD)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserSpiInfoBuffer {
+    info: [u8; XFRM_USER_SA_INFO_LEN],
+    min: u32,
+    max: u32,
+}
 
 impl Default for UserSpiInfo {
     // Set the same default ranges as iproute2
@@ -39,28 +48,46 @@ impl Default for UserSpiInfo {
     }
 }
 
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserSpiInfoBuffer<&T>> for UserSpiInfo {
-    fn parse(buf: &UserSpiInfoBuffer<&T>) -> Result<Self, DecodeError> {
-        let info = UserSaInfo::parse(&UserSaInfoBuffer::new(&buf.info()))
+impl UserSpiInfo {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserSpiInfoBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserSpiInfoBuffer>(),
+                )
+            })?;
+        let info = UserSaInfo::parse(&raw.info[..])
             .context("failed to parse user sa info")?;
-        Ok(UserSpiInfo {
+        Ok(Self {
             info,
-            min: buf.min(),
-            max: buf.max(),
+            min: raw.min,
+            max: raw.max,
         })
+    }
+}
+
+impl From<&UserSpiInfo> for UserSpiInfoBuffer {
+    fn from(value: &UserSpiInfo) -> Self {
+        let mut info = [0u8; XFRM_USER_SA_INFO_LEN];
+        info.copy_from_slice(UserSaInfoBuffer::from(&value.info).as_bytes());
+        Self {
+            info,
+            min: value.min,
+            max: value.max,
+        }
     }
 }
 
 impl Emitable for UserSpiInfo {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_SPI_INFO_LEN
+        size_of::<UserSpiInfoBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserSpiInfoBuffer::new(buffer);
-        self.info.emit(buffer.info_mut());
-        buffer.set_min(self.min);
-        buffer.set_max(self.max);
+        let raw = UserSpiInfoBuffer::from(self);
+        buffer[..size_of::<UserSpiInfoBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }
 

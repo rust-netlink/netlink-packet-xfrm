@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
 use crate::{
-    policy::ModifyMessageBuffer, UserPolicyInfo, UserPolicyInfoBuffer,
-    XfrmAttrs,
+    nlas::VecXfrmAttrs, UserPolicyInfo, UserPolicyInfoBuffer, XfrmAttrs,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
@@ -26,30 +27,20 @@ impl Emitable for ModifyMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<ModifyMessageBuffer<&'a T>>
-    for ModifyMessage
-{
-    fn parse(buf: &ModifyMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let user_policy_info = UserPolicyInfo::parse(
-            &UserPolicyInfoBuffer::new(&buf.user_policy_info()),
-        )
-        .context("failed to parse policy modify message user policy info")?;
-        Ok(ModifyMessage {
+impl Parseable<[u8]> for ModifyMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let user_policy_info =
+            UserPolicyInfo::parse(&buf[..size_of::<UserPolicyInfoBuffer>()])
+                .context(
+                    "failed to parse policy modify message user policy info",
+                )?;
+        Ok(Self {
             user_policy_info,
-            nlas: Vec::<XfrmAttrs>::parse(buf)
-                .context("failed to parse policy modify message NLAs")?,
+            nlas: VecXfrmAttrs::parse(
+                &buf[size_of::<UserPolicyInfoBuffer>()..],
+            )
+            .context("failed to parse policy modify message NLAs")?
+            .0,
         })
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<ModifyMessageBuffer<&'a T>>
-    for Vec<XfrmAttrs>
-{
-    fn parse(buf: &ModifyMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(XfrmAttrs::parse(&nla_buf?)?);
-        }
-        Ok(nlas)
     }
 }

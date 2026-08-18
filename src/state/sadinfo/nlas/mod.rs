@@ -5,11 +5,23 @@ use std::mem::size_of;
 
 use netlink_packet_core::{
     emit_u32, parse_u32, DecodeError, DefaultNla, Emitable, ErrorContext, Nla,
-    NlaBuffer, Parseable,
+    NlaBuffer, NlasIterator, Parseable,
 };
 pub use sad_info::*;
 
 use crate::constants::*;
+
+pub(crate) struct VecSadInfoAttrs(pub(crate) Vec<SadInfoAttrs>);
+
+impl Parseable<[u8]> for VecSadInfoAttrs {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let mut nlas = vec![];
+        for nla_buf in NlasIterator::new(buf) {
+            nlas.push(SadInfoAttrs::parse(&nla_buf?)?);
+        }
+        Ok(Self(nlas))
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SadInfoAttrs {
@@ -63,7 +75,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for SadInfoAttrs {
                 parse_u32(payload).context("invalid XFRMA_SAD_CNT value")?,
             ),
             XFRMA_SAD_HINFO => SadHInfo(
-                sad_info::SadHInfo::parse(&SadHInfoBuffer::new(payload))
+                sad_info::SadHInfo::parse(payload)
                     .context("invalid XFRMA_SAD_HINFO")?,
             ),
             kind => Other(

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::{AcquireMessageBuffer, UserAcquire, UserAcquireBuffer, XfrmAttrs};
+use crate::{nlas::VecXfrmAttrs, UserAcquire, UserAcquireBuffer, XfrmAttrs};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct AcquireMessage {
@@ -23,29 +25,16 @@ impl Emitable for AcquireMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<AcquireMessageBuffer<&'a T>>
-    for AcquireMessage
-{
-    fn parse(buf: &AcquireMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl Parseable<[u8]> for AcquireMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
         let acquire =
-            UserAcquire::parse(&UserAcquireBuffer::new(&buf.acquire()))
+            UserAcquire::parse(&buf[..size_of::<UserAcquireBuffer>()])
                 .context("failed to parse monitor acquire message info")?;
-        Ok(AcquireMessage {
+        Ok(Self {
             acquire,
-            nlas: Vec::<XfrmAttrs>::parse(buf)
-                .context("failed to parse monitor acquire message NLAs")?,
+            nlas: VecXfrmAttrs::parse(&buf[size_of::<UserAcquireBuffer>()..])
+                .context("failed to parse monitor acquire message NLAs")?
+                .0,
         })
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<AcquireMessageBuffer<&'a T>>
-    for Vec<XfrmAttrs>
-{
-    fn parse(buf: &AcquireMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(XfrmAttrs::parse(&nla_buf?)?);
-        }
-        Ok(nlas)
     }
 }

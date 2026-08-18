@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::{
-    state::AllocSpiMessageBuffer, UserSpiInfo, UserSpiInfoBuffer, XfrmAttrs,
-};
+use crate::{nlas::VecXfrmAttrs, UserSpiInfo, UserSpiInfoBuffer, XfrmAttrs};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct AllocSpiMessage {
@@ -25,29 +25,16 @@ impl Emitable for AllocSpiMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<AllocSpiMessageBuffer<&'a T>>
-    for AllocSpiMessage
-{
-    fn parse(buf: &AllocSpiMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl Parseable<[u8]> for AllocSpiMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
         let spi_info =
-            UserSpiInfo::parse(&UserSpiInfoBuffer::new(&buf.spi_info()))
+            UserSpiInfo::parse(&buf[..size_of::<UserSpiInfoBuffer>()])
                 .context("failed to parse state allocspi message spi info")?;
-        Ok(AllocSpiMessage {
+        Ok(Self {
             spi_info,
-            nlas: Vec::<XfrmAttrs>::parse(buf)
-                .context("failed to parse state delget message NLAs")?,
+            nlas: VecXfrmAttrs::parse(&buf[size_of::<UserSpiInfoBuffer>()..])
+                .context("failed to parse state delget message NLAs")?
+                .0,
         })
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<AllocSpiMessageBuffer<&'a T>>
-    for Vec<XfrmAttrs>
-{
-    fn parse(buf: &AllocSpiMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(XfrmAttrs::parse(&nla_buf?)?);
-        }
-        Ok(nlas)
     }
 }

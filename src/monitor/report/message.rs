@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::{ReportMessageBuffer, UserReport, UserReportBuffer, XfrmAttrs};
+use crate::{nlas::VecXfrmAttrs, UserReport, UserReportBuffer, XfrmAttrs};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct ReportMessage {
@@ -23,28 +25,15 @@ impl Emitable for ReportMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<ReportMessageBuffer<&'a T>>
-    for ReportMessage
-{
-    fn parse(buf: &ReportMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let report = UserReport::parse(&UserReportBuffer::new(&buf.report()))
+impl Parseable<[u8]> for ReportMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let report = UserReport::parse(&buf[..size_of::<UserReportBuffer>()])
             .context("failed to parse monitor acquire message info")?;
-        Ok(ReportMessage {
+        Ok(Self {
             report,
-            nlas: Vec::<XfrmAttrs>::parse(buf)
-                .context("failed to parse monitor report message NLAs")?,
+            nlas: VecXfrmAttrs::parse(&buf[size_of::<UserReportBuffer>()..])
+                .context("failed to parse monitor report message NLAs")?
+                .0,
         })
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<ReportMessageBuffer<&'a T>>
-    for Vec<XfrmAttrs>
-{
-    fn parse(buf: &ReportMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(XfrmAttrs::parse(&nla_buf?)?);
-        }
-        Ok(nlas)
     }
 }

@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::{
+    mem::size_of,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+};
 
-use netlink_packet_core::{DecodeError, Emitable, Parseable};
+use netlink_packet_core::{DecodeError, Emitable};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 pub const XFRM_ADDRESS_LEN: usize = 16;
 
@@ -13,26 +17,49 @@ pub struct Address {
     pub addr: [u8; XFRM_ADDRESS_LEN],
 }
 
-buffer!(AddressBuffer(XFRM_ADDRESS_LEN) {
-    addr: (slice, 0..XFRM_ADDRESS_LEN)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct AddressBuffer {
+    addr: [u8; XFRM_ADDRESS_LEN],
+}
 
-impl<T: AsRef<[u8]> + ?Sized> Parseable<AddressBuffer<&T>> for Address {
-    fn parse(buf: &AddressBuffer<&T>) -> Result<Self, DecodeError> {
-        let mut addr_payload: [u8; XFRM_ADDRESS_LEN] = [0; XFRM_ADDRESS_LEN];
-        addr_payload.clone_from_slice(buf.addr());
-        Ok(Address { addr: addr_payload })
+impl Address {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            AddressBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<AddressBuffer>(),
+                )
+            })?;
+        Ok(Self { addr: raw.addr })
+    }
+}
+
+impl From<&Address> for AddressBuffer {
+    fn from(value: &Address) -> Self {
+        Self { addr: value.addr }
     }
 }
 
 impl Emitable for Address {
     fn buffer_len(&self) -> usize {
-        XFRM_ADDRESS_LEN
+        size_of::<AddressBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = AddressBuffer::new(buffer);
-        buffer.addr_mut().clone_from_slice(&self.addr[..]);
+        let raw = AddressBuffer::from(self);
+        buffer[..size_of::<AddressBuffer>()].copy_from_slice(raw.as_bytes());
     }
 }
 

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     Lifetime, LifetimeBuffer, LifetimeConfig, LifetimeConfigBuffer, Selector,
@@ -23,75 +24,98 @@ pub struct UserPolicyInfo {
     pub share: u8,
 }
 
-const SELECTOR_FIELD: Range<usize> = 0..XFRM_SELECTOR_LEN;
-const LIFETIME_CFG_FIELD: Range<usize> =
-    SELECTOR_FIELD.end..(SELECTOR_FIELD.end + XFRM_LIFETIME_CONFIG_LEN);
-const LIFETIME_CUR_FIELD: Range<usize> =
-    LIFETIME_CFG_FIELD.end..(LIFETIME_CFG_FIELD.end + XFRM_LIFETIME_LEN);
-const PRIORITY_FIELD: Range<usize> =
-    LIFETIME_CUR_FIELD.end..(LIFETIME_CUR_FIELD.end + 4);
-const INDEX_FIELD: Range<usize> = PRIORITY_FIELD.end..(PRIORITY_FIELD.end + 4);
-const DIRECTION_FIELD: usize = INDEX_FIELD.end;
-const ACTION_FIELD: usize = DIRECTION_FIELD + 1;
-const FLAGS_FIELD: usize = ACTION_FIELD + 1;
-const SHARE_FIELD: usize = FLAGS_FIELD + 1;
+pub const XFRM_USER_POLICY_INFO_LEN: usize = 168;
 
-pub const XFRM_USER_POLICY_INFO_LEN: usize = (SHARE_FIELD + 7) & !7; // 168
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserPolicyInfoBuffer {
+    selector: [u8; XFRM_SELECTOR_LEN],
+    lifetime_cfg: [u8; XFRM_LIFETIME_CONFIG_LEN],
+    lifetime_cur: [u8; XFRM_LIFETIME_LEN],
+    priority: u32,
+    index: u32,
+    direction: u8,
+    action: u8,
+    flags: u8,
+    share: u8,
+    padding: [u8; 4],
+}
 
-buffer!(UserPolicyInfoBuffer(XFRM_USER_POLICY_INFO_LEN) {
-    selector: (slice, SELECTOR_FIELD),
-    lifetime_cfg: (slice, LIFETIME_CFG_FIELD),
-    lifetime_cur: (slice, LIFETIME_CUR_FIELD),
-    priority: (u32, PRIORITY_FIELD),
-    index: (u32, INDEX_FIELD),
-    direction: (u8, DIRECTION_FIELD),
-    action: (u8, ACTION_FIELD),
-    flags: (u8, FLAGS_FIELD),
-    share: (u8, SHARE_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserPolicyInfoBuffer<&T>>
-    for UserPolicyInfo
-{
-    fn parse(buf: &UserPolicyInfoBuffer<&T>) -> Result<Self, DecodeError> {
-        let selector = Selector::parse(&SelectorBuffer::new(&buf.selector()))
+impl UserPolicyInfo {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserPolicyInfoBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserPolicyInfoBuffer>(),
+                )
+            })?;
+        let selector = Selector::parse(&raw.selector[..])
             .context("failed to parse selector")?;
-        let lifetime_cfg = LifetimeConfig::parse(&LifetimeConfigBuffer::new(
-            &buf.lifetime_cfg(),
-        ))
-        .context("failed to parse lifetime config")?;
-        let lifetime_cur =
-            Lifetime::parse(&LifetimeBuffer::new(&buf.lifetime_cur()))
-                .context("failed to parse lifetime current")?;
-        Ok(UserPolicyInfo {
+        let lifetime_cfg = LifetimeConfig::parse(&raw.lifetime_cfg[..])
+            .context("failed to parse lifetime config")?;
+        let lifetime_cur = Lifetime::parse(&raw.lifetime_cur[..])
+            .context("failed to parse lifetime current")?;
+        Ok(Self {
             selector,
             lifetime_cfg,
             lifetime_cur,
-            priority: buf.priority(),
-            index: buf.index(),
-            direction: buf.direction(),
-            action: buf.action(),
-            flags: buf.flags(),
-            share: buf.share(),
+            priority: raw.priority,
+            index: raw.index,
+            direction: raw.direction,
+            action: raw.action,
+            flags: raw.flags,
+            share: raw.share,
         })
+    }
+}
+
+impl From<&UserPolicyInfo> for UserPolicyInfoBuffer {
+    fn from(value: &UserPolicyInfo) -> Self {
+        let mut selector = [0u8; XFRM_SELECTOR_LEN];
+        selector
+            .copy_from_slice(SelectorBuffer::from(&value.selector).as_bytes());
+        let mut lifetime_cfg = [0u8; XFRM_LIFETIME_CONFIG_LEN];
+        lifetime_cfg.copy_from_slice(
+            LifetimeConfigBuffer::from(&value.lifetime_cfg).as_bytes(),
+        );
+        let mut lifetime_cur = [0u8; XFRM_LIFETIME_LEN];
+        lifetime_cur.copy_from_slice(
+            LifetimeBuffer::from(&value.lifetime_cur).as_bytes(),
+        );
+        Self {
+            selector,
+            lifetime_cfg,
+            lifetime_cur,
+            priority: value.priority,
+            index: value.index,
+            direction: value.direction,
+            action: value.action,
+            flags: value.flags,
+            share: value.share,
+            padding: [0; 4],
+        }
     }
 }
 
 impl Emitable for UserPolicyInfo {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_POLICY_INFO_LEN
+        size_of::<UserPolicyInfoBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserPolicyInfoBuffer::new(buffer);
-        self.selector.emit(buffer.selector_mut());
-        self.lifetime_cfg.emit(buffer.lifetime_cfg_mut());
-        self.lifetime_cur.emit(buffer.lifetime_cur_mut());
-        buffer.set_priority(self.priority);
-        buffer.set_index(self.index);
-        buffer.set_direction(self.direction);
-        buffer.set_action(self.action);
-        buffer.set_flags(self.flags);
-        buffer.set_share(self.share);
+        let raw = UserPolicyInfoBuffer::from(self);
+        buffer[..size_of::<UserPolicyInfoBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }

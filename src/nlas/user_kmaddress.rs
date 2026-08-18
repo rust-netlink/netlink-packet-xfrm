@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{Address, AddressBuffer, XFRM_ADDRESS_LEN};
 
@@ -14,48 +15,74 @@ pub struct UserKmAddress {
     pub family: u16,
 }
 
-const LOCAL_FIELD: Range<usize> = 0..XFRM_ADDRESS_LEN;
-const REMOTE_FIELD: Range<usize> =
-    LOCAL_FIELD.end..(LOCAL_FIELD.end + XFRM_ADDRESS_LEN);
-const RESERVED_FIELD: Range<usize> = REMOTE_FIELD.end..(REMOTE_FIELD.end + 4);
-const FAMILY_FIELD: Range<usize> = RESERVED_FIELD.end..(RESERVED_FIELD.end + 2);
+pub const XFRM_USER_KMADDRESS_LEN: usize = 40;
 
-pub const XFRM_USER_KMADDRESS_LEN: usize = (FAMILY_FIELD.end + 7) & !7; // 40
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserKmAddressBuffer {
+    local: [u8; XFRM_ADDRESS_LEN],
+    remote: [u8; XFRM_ADDRESS_LEN],
+    reserved: u32,
+    family: u16,
+    padding: [u8; 2],
+}
 
-buffer!(UserKmAddressBuffer(XFRM_USER_KMADDRESS_LEN) {
-    local: (slice, LOCAL_FIELD),
-    remote: (slice, REMOTE_FIELD),
-    reserved: (u32, RESERVED_FIELD),
-    family: (u16, FAMILY_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserKmAddressBuffer<&T>>
-    for UserKmAddress
-{
-    fn parse(buf: &UserKmAddressBuffer<&T>) -> Result<Self, DecodeError> {
-        let local = Address::parse(&AddressBuffer::new(&buf.local()))
+impl UserKmAddress {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserKmAddressBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserKmAddressBuffer>(),
+                )
+            })?;
+        let local = Address::parse(&raw.local[..])
             .context("failed to parse local address")?;
-        let remote = Address::parse(&AddressBuffer::new(&buf.remote()))
+        let remote = Address::parse(&raw.remote[..])
             .context("failed to parse remote address")?;
-        Ok(UserKmAddress {
+        Ok(Self {
             local,
             remote,
-            reserved: buf.reserved(),
-            family: buf.family(),
+            reserved: raw.reserved,
+            family: raw.family,
         })
+    }
+}
+
+impl From<&UserKmAddress> for UserKmAddressBuffer {
+    fn from(value: &UserKmAddress) -> Self {
+        let mut local = [0u8; XFRM_ADDRESS_LEN];
+        local.copy_from_slice(AddressBuffer::from(&value.local).as_bytes());
+        let mut remote = [0u8; XFRM_ADDRESS_LEN];
+        remote.copy_from_slice(AddressBuffer::from(&value.remote).as_bytes());
+        Self {
+            local,
+            remote,
+            reserved: value.reserved,
+            family: value.family,
+            padding: [0; 2],
+        }
     }
 }
 
 impl Emitable for UserKmAddress {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_KMADDRESS_LEN
+        size_of::<UserKmAddressBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserKmAddressBuffer::new(buffer);
-        self.local.emit(buffer.local_mut());
-        self.remote.emit(buffer.remote_mut());
-        buffer.set_reserved(self.reserved);
-        buffer.set_family(self.family);
+        let raw = UserKmAddressBuffer::from(self);
+        buffer[..size_of::<UserKmAddressBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }

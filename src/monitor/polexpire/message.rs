@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
 use crate::{
-    PolicyExpireMessageBuffer, UserPolicyExpire, UserPolicyExpireBuffer,
-    XfrmAttrs,
+    nlas::VecXfrmAttrs, UserPolicyExpire, UserPolicyExpireBuffer, XfrmAttrs,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
@@ -26,35 +27,19 @@ impl Emitable for PolicyExpireMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<PolicyExpireMessageBuffer<&'a T>>
-    for PolicyExpireMessage
-{
-    fn parse(
-        buf: &PolicyExpireMessageBuffer<&'a T>,
-    ) -> Result<Self, DecodeError> {
-        let expire = UserPolicyExpire::parse(&UserPolicyExpireBuffer::new(
-            &buf.expire(),
-        ))
+impl Parseable<[u8]> for PolicyExpireMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let expire = UserPolicyExpire::parse(
+            &buf[..size_of::<UserPolicyExpireBuffer>()],
+        )
         .context("failed to parse monitor policy expire message info")?;
-        Ok(PolicyExpireMessage {
+        Ok(Self {
             expire,
-            nlas: Vec::<XfrmAttrs>::parse(buf).context(
-                "failed to parse monitor policy expire message NLAs",
-            )?,
+            nlas: VecXfrmAttrs::parse(
+                &buf[size_of::<UserPolicyExpireBuffer>()..],
+            )
+            .context("failed to parse monitor policy expire message NLAs")?
+            .0,
         })
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<PolicyExpireMessageBuffer<&'a T>>
-    for Vec<XfrmAttrs>
-{
-    fn parse(
-        buf: &PolicyExpireMessageBuffer<&'a T>,
-    ) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(XfrmAttrs::parse(&nla_buf?)?);
-        }
-        Ok(nlas)
     }
 }

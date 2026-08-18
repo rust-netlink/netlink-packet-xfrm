@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
-use std::net::IpAddr;
+use std::{mem::size_of, net::IpAddr};
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     constants::{AF_INET, AF_INET6},
@@ -24,35 +24,34 @@ pub struct UserTemplate {
     pub calgos: u32,
 }
 
-const ID_FIELD: Range<usize> = 0..XFRM_ID_LEN;
-const FAMILY_FIELD: Range<usize> = ID_FIELD.end..(ID_FIELD.end + 2);
-const SADDR_FIELD: Range<usize> =
-    (FAMILY_FIELD.end + 2)..(FAMILY_FIELD.end + 2 + XFRM_ADDRESS_LEN);
-const REQID_FIELD: Range<usize> = SADDR_FIELD.end..(SADDR_FIELD.end + 4);
-const MODE_FIELD: usize = REQID_FIELD.end;
-const SHARE_FIELD: usize = MODE_FIELD + 1;
-const OPTIONAL_FIELD: usize = SHARE_FIELD + 1;
-const AALGOS_FIELD: Range<usize> =
-    (OPTIONAL_FIELD + 2)..(OPTIONAL_FIELD + 2 + 4);
-const EALGOS_FIELD: Range<usize> = AALGOS_FIELD.end..(AALGOS_FIELD.end + 4);
-const CALGOS_FIELD: Range<usize> = EALGOS_FIELD.end..(EALGOS_FIELD.end + 4);
+pub const XFRM_USER_TEMPLATE_LEN: usize = 64;
 
-pub const XFRM_USER_TEMPLATE_LEN: usize = CALGOS_FIELD.end; //64
-
-buffer!(UserTemplateBuffer(XFRM_USER_TEMPLATE_LEN) {
-    id: (slice, ID_FIELD),
-    family: (u16, FAMILY_FIELD),
-    /* 2 bytes padding */
-    saddr: (slice, SADDR_FIELD),
-    reqid: (u32, REQID_FIELD),
-    mode: (u8, MODE_FIELD),
-    share: (u8, SHARE_FIELD),
-    optional: (u8, OPTIONAL_FIELD),
-    /* 1 byte padding */
-    aalgos: (u32, AALGOS_FIELD),
-    ealgos: (u32, EALGOS_FIELD),
-    calgos: (u32, CALGOS_FIELD)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserTemplateBuffer {
+    id: [u8; XFRM_ID_LEN],
+    family: u16,
+    padding1: [u8; 2],
+    saddr: [u8; XFRM_ADDRESS_LEN],
+    reqid: u32,
+    mode: u8,
+    share: u8,
+    optional: u8,
+    padding2: [u8; 1],
+    aalgos: u32,
+    ealgos: u32,
+    calgos: u32,
+}
 
 impl Default for UserTemplate {
     fn default() -> Self {
@@ -71,46 +70,66 @@ impl Default for UserTemplate {
     }
 }
 
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserTemplateBuffer<&T>>
-    for UserTemplate
-{
-    fn parse(buf: &UserTemplateBuffer<&T>) -> Result<Self, DecodeError> {
-        let id = Id::parse(&IdBuffer::new(&buf.id()))
+impl UserTemplate {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserTemplateBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserTemplateBuffer>(),
+                )
+            })?;
+        let id = Id::parse(&raw.id[..])
             .context("failed to parse Id in UserTemplate")?;
-        let saddr = Address::parse(&AddressBuffer::new(&buf.saddr()))
+        let saddr = Address::parse(&raw.saddr[..])
             .context("failed to parse Address in UserTemplate")?;
-        Ok(UserTemplate {
+        Ok(Self {
             id,
-            family: buf.family(),
+            family: raw.family,
             saddr,
-            reqid: buf.reqid(),
-            mode: buf.mode(),
-            share: buf.share(),
-            optional: buf.optional(),
-            aalgos: buf.aalgos(),
-            ealgos: buf.ealgos(),
-            calgos: buf.calgos(),
+            reqid: raw.reqid,
+            mode: raw.mode,
+            share: raw.share,
+            optional: raw.optional,
+            aalgos: raw.aalgos,
+            ealgos: raw.ealgos,
+            calgos: raw.calgos,
         })
+    }
+}
+
+impl From<&UserTemplate> for UserTemplateBuffer {
+    fn from(value: &UserTemplate) -> Self {
+        let mut id = [0u8; XFRM_ID_LEN];
+        id.copy_from_slice(IdBuffer::from(&value.id).as_bytes());
+        let mut saddr = [0u8; XFRM_ADDRESS_LEN];
+        saddr.copy_from_slice(AddressBuffer::from(&value.saddr).as_bytes());
+        Self {
+            id,
+            family: value.family,
+            padding1: [0; 2],
+            saddr,
+            reqid: value.reqid,
+            mode: value.mode,
+            share: value.share,
+            optional: value.optional,
+            padding2: [0; 1],
+            aalgos: value.aalgos,
+            ealgos: value.ealgos,
+            calgos: value.calgos,
+        }
     }
 }
 
 impl Emitable for UserTemplate {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_TEMPLATE_LEN
+        size_of::<UserTemplateBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserTemplateBuffer::new(buffer);
-        self.id.emit(buffer.id_mut());
-        buffer.set_family(self.family);
-        self.saddr.emit(buffer.saddr_mut());
-        buffer.set_reqid(self.reqid);
-        buffer.set_mode(self.mode);
-        buffer.set_share(self.share);
-        buffer.set_optional(self.optional);
-        buffer.set_aalgos(self.aalgos);
-        buffer.set_ealgos(self.ealgos);
-        buffer.set_calgos(self.calgos);
+        let raw = UserTemplateBuffer::from(self);
+        buffer[..size_of::<UserTemplateBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }
 

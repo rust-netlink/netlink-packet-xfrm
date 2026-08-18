@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use std::mem::size_of;
 
-use crate::{Address, AddressBuffer, XFRM_ADDRESS_LEN};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
+
+use crate::{Address, XFRM_ADDRESS_LEN};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct Id {
@@ -11,35 +14,60 @@ pub struct Id {
     pub proto: u8,
 }
 
-pub const XFRM_ID_LEN: usize = (XFRM_ADDRESS_LEN + 5 + 7) & !7; // 24
+pub const XFRM_ID_LEN: usize = 24;
 
-buffer!(IdBuffer(XFRM_ID_LEN) {
-    daddr: (slice, 0..XFRM_ADDRESS_LEN),
-    spi: (u32, XFRM_ADDRESS_LEN..XFRM_ADDRESS_LEN+4),
-    proto: (u8, XFRM_ADDRESS_LEN+4)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct IdBuffer {
+    daddr: [u8; XFRM_ADDRESS_LEN],
+    spi: u32,
+    proto: u8,
+    padding: [u8; 3],
+}
 
-impl<T: AsRef<[u8]> + ?Sized> Parseable<IdBuffer<&T>> for Id {
-    fn parse(buf: &IdBuffer<&T>) -> Result<Self, DecodeError> {
-        let daddr = Address::parse(&AddressBuffer::new(&buf.daddr()))
+impl Id {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) = IdBuffer::ref_from_prefix(payload).map_err(|_| {
+            DecodeError::buffer_too_small(payload.len(), size_of::<IdBuffer>())
+        })?;
+        let daddr = Address::parse(&raw.daddr[..])
             .context("failed to parse Address in Id")?;
-        Ok(Id {
+        Ok(Self {
             daddr,
-            spi: u32::from_be(buf.spi()),
-            proto: buf.proto(),
+            spi: u32::from_be(raw.spi),
+            proto: raw.proto,
         })
+    }
+}
+
+impl From<&Id> for IdBuffer {
+    fn from(value: &Id) -> Self {
+        Self {
+            daddr: value.daddr.addr,
+            spi: value.spi.to_be(),
+            proto: value.proto,
+            padding: [0; 3],
+        }
     }
 }
 
 impl Emitable for Id {
     fn buffer_len(&self) -> usize {
-        XFRM_ID_LEN
+        size_of::<IdBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = IdBuffer::new(buffer);
-        self.daddr.emit(buffer.daddr_mut());
-        buffer.set_spi(self.spi.to_be());
-        buffer.set_proto(self.proto);
+        let raw = IdBuffer::from(self);
+        buffer[..size_of::<IdBuffer>()].copy_from_slice(raw.as_bytes());
     }
 }

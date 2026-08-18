@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
-use std::net::IpAddr;
+use std::{mem::size_of, net::IpAddr};
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     constants::{AF_INET, AF_INET6},
-    Address, AddressBuffer, XFRM_ADDRESS_LEN,
+    Address, XFRM_ADDRESS_LEN,
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
@@ -26,82 +26,94 @@ pub struct Selector {
     pub user: u32,    // "__kernel_uid32_t" in iproute2
 }
 
-const DADDR_FIELD: Range<usize> = 0..XFRM_ADDRESS_LEN;
-const SADDR_FIELD: Range<usize> =
-    DADDR_FIELD.end..(DADDR_FIELD.end + XFRM_ADDRESS_LEN);
-const DPORT_FIELD: Range<usize> = SADDR_FIELD.end..(SADDR_FIELD.end + 2);
-const DPORT_MASK_FIELD: Range<usize> = DPORT_FIELD.end..(DPORT_FIELD.end + 2);
-const SPORT_FIELD: Range<usize> =
-    DPORT_MASK_FIELD.end..(DPORT_MASK_FIELD.end + 2);
-const SPORT_MASK_FIELD: Range<usize> = SPORT_FIELD.end..(SPORT_FIELD.end + 2);
-const FAMILY_FIELD: Range<usize> =
-    SPORT_MASK_FIELD.end..(SPORT_MASK_FIELD.end + 2);
-const PREFIXLEN_D_FIELD: usize = FAMILY_FIELD.end;
-const PREFIXLEN_S_FIELD: usize = PREFIXLEN_D_FIELD + 1;
-const PROTO_FIELD: usize = PREFIXLEN_S_FIELD + 1;
-const IFINDEX_FIELD: Range<usize> = (PROTO_FIELD + 4)..(PROTO_FIELD + 4 + 4);
-const USER_FIELD: Range<usize> = IFINDEX_FIELD.end..(IFINDEX_FIELD.end + 4);
+pub const XFRM_SELECTOR_LEN: usize = 56;
 
-pub const XFRM_SELECTOR_LEN: usize = USER_FIELD.end; //56
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct SelectorBuffer {
+    daddr: [u8; XFRM_ADDRESS_LEN],
+    saddr: [u8; XFRM_ADDRESS_LEN],
+    dport: u16,
+    dport_mask: u16,
+    sport: u16,
+    sport_mask: u16,
+    family: u16,
+    prefixlen_d: u8,
+    prefixlen_s: u8,
+    proto: u8,
+    padding: [u8; 3],
+    ifindex: i32,
+    user: u32,
+}
 
-buffer!(SelectorBuffer(XFRM_SELECTOR_LEN) {
-    daddr: (slice, DADDR_FIELD),
-    saddr: (slice, SADDR_FIELD),
-    dport: (u16, DPORT_FIELD),
-    dport_mask: (u16, DPORT_MASK_FIELD),
-    sport: (u16, SPORT_FIELD),
-    sport_mask: (u16, SPORT_MASK_FIELD),
-    family: (u16, FAMILY_FIELD),
-    prefixlen_d: (u8, PREFIXLEN_D_FIELD),
-    prefixlen_s: (u8, PREFIXLEN_S_FIELD),
-    proto: (u8, PROTO_FIELD),
-    /* 3 bytes of padding at (45..48) between proto and ifindex */
-    ifindex: (i32, IFINDEX_FIELD),
-    user: (u32, USER_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<SelectorBuffer<&T>> for Selector {
-    fn parse(buf: &SelectorBuffer<&T>) -> Result<Self, DecodeError> {
-        let daddr = Address::parse(&AddressBuffer::new(&buf.daddr()))
-            .context("failed to parse daddr")?;
-        let saddr = Address::parse(&AddressBuffer::new(&buf.saddr()))
-            .context("failed to parse saddr")?;
-        Ok(Selector {
+impl Selector {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            SelectorBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<SelectorBuffer>(),
+                )
+            })?;
+        let daddr =
+            Address::parse(&raw.daddr[..]).context("failed to parse daddr")?;
+        let saddr =
+            Address::parse(&raw.saddr[..]).context("failed to parse saddr")?;
+        Ok(Self {
             daddr,
             saddr,
-            dport: u16::from_be(buf.dport()),
-            dport_mask: u16::from_be(buf.dport_mask()),
-            sport: u16::from_be(buf.sport()),
-            sport_mask: u16::from_be(buf.sport_mask()),
-            family: buf.family(),
-            prefixlen_d: buf.prefixlen_d(),
-            prefixlen_s: buf.prefixlen_s(),
-            proto: buf.proto(),
-            ifindex: buf.ifindex(),
-            user: buf.user(),
+            dport: u16::from_be(raw.dport),
+            dport_mask: u16::from_be(raw.dport_mask),
+            sport: u16::from_be(raw.sport),
+            sport_mask: u16::from_be(raw.sport_mask),
+            family: raw.family,
+            prefixlen_d: raw.prefixlen_d,
+            prefixlen_s: raw.prefixlen_s,
+            proto: raw.proto,
+            ifindex: raw.ifindex,
+            user: raw.user,
         })
+    }
+}
+
+impl From<&Selector> for SelectorBuffer {
+    fn from(value: &Selector) -> Self {
+        Self {
+            daddr: value.daddr.addr,
+            saddr: value.saddr.addr,
+            dport: value.dport.to_be(),
+            dport_mask: value.dport_mask.to_be(),
+            sport: value.sport.to_be(),
+            sport_mask: value.sport_mask.to_be(),
+            family: value.family,
+            prefixlen_d: value.prefixlen_d,
+            prefixlen_s: value.prefixlen_s,
+            proto: value.proto,
+            padding: [0; 3],
+            ifindex: value.ifindex,
+            user: value.user,
+        }
     }
 }
 
 impl Emitable for Selector {
     fn buffer_len(&self) -> usize {
-        XFRM_SELECTOR_LEN
+        size_of::<SelectorBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = SelectorBuffer::new(buffer);
-        self.daddr.emit(buffer.daddr_mut());
-        self.saddr.emit(buffer.saddr_mut());
-        buffer.set_dport(self.dport.to_be());
-        buffer.set_dport_mask(self.dport_mask.to_be());
-        buffer.set_sport(self.sport.to_be());
-        buffer.set_sport_mask(self.sport_mask.to_be());
-        buffer.set_family(self.family);
-        buffer.set_prefixlen_d(self.prefixlen_d);
-        buffer.set_prefixlen_s(self.prefixlen_s);
-        buffer.set_proto(self.proto);
-        buffer.set_ifindex(self.ifindex);
-        buffer.set_user(self.user);
+        let raw = SelectorBuffer::from(self);
+        buffer[..size_of::<SelectorBuffer>()].copy_from_slice(raw.as_bytes());
     }
 }
 

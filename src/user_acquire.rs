@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     Address, AddressBuffer, Id, IdBuffer, Selector, SelectorBuffer,
@@ -22,69 +23,94 @@ pub struct UserAcquire {
     pub seq: u32,
 }
 
-const ID_FIELD: Range<usize> = 0..XFRM_ID_LEN;
-const SADDR_FIELD: Range<usize> =
-    ID_FIELD.end..(ID_FIELD.end + XFRM_ADDRESS_LEN);
-const SELECTOR_FIELD: Range<usize> =
-    SADDR_FIELD.end..(SADDR_FIELD.end + XFRM_SELECTOR_LEN);
-const POLICY_FIELD: Range<usize> =
-    SELECTOR_FIELD.end..(SELECTOR_FIELD.end + XFRM_USER_POLICY_INFO_LEN);
-const AALGOS_FIELD: Range<usize> = POLICY_FIELD.end..(POLICY_FIELD.end + 4);
-const EALGOS_FIELD: Range<usize> = AALGOS_FIELD.end..(AALGOS_FIELD.end + 4);
-const CALGOS_FIELD: Range<usize> = EALGOS_FIELD.end..(EALGOS_FIELD.end + 4);
-const SEQ_FIELD: Range<usize> = CALGOS_FIELD.end..(CALGOS_FIELD.end + 4);
+pub const XFRM_USER_ACQUIRE_LEN: usize = 280;
 
-pub const XFRM_USER_ACQUIRE_LEN: usize = (SEQ_FIELD.end + 7) & !7; // 280
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserAcquireBuffer {
+    id: [u8; XFRM_ID_LEN],
+    saddr: [u8; XFRM_ADDRESS_LEN],
+    selector: [u8; XFRM_SELECTOR_LEN],
+    policy: [u8; XFRM_USER_POLICY_INFO_LEN],
+    aalgos: u32,
+    ealgos: u32,
+    calgos: u32,
+    seq: u32,
+}
 
-buffer!(UserAcquireBuffer(XFRM_USER_ACQUIRE_LEN) {
-    id: (slice, ID_FIELD),
-    saddr: (slice, SADDR_FIELD),
-    selector: (slice, SELECTOR_FIELD),
-    policy: (slice, POLICY_FIELD),
-    aalgos: (u32, AALGOS_FIELD),
-    ealgos: (u32, EALGOS_FIELD),
-    calgos: (u32, CALGOS_FIELD),
-    seq: (u32, SEQ_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserAcquireBuffer<&T>> for UserAcquire {
-    fn parse(buf: &UserAcquireBuffer<&T>) -> Result<Self, DecodeError> {
-        let id = Id::parse(&IdBuffer::new(&buf.id()))
-            .context("failed to parse id")?;
-        let saddr = Address::parse(&AddressBuffer::new(&buf.saddr()))
-            .context("failed to parse saddr")?;
-        let selector = Selector::parse(&SelectorBuffer::new(&buf.selector()))
+impl UserAcquire {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserAcquireBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserAcquireBuffer>(),
+                )
+            })?;
+        let id = Id::parse(&raw.id[..]).context("failed to parse id")?;
+        let saddr =
+            Address::parse(&raw.saddr[..]).context("failed to parse saddr")?;
+        let selector = Selector::parse(&raw.selector[..])
             .context("failed to parse selector")?;
-        let policy =
-            UserPolicyInfo::parse(&UserPolicyInfoBuffer::new(&buf.policy()))
-                .context("failed to parse policy")?;
-        Ok(UserAcquire {
+        let policy = UserPolicyInfo::parse(&raw.policy[..])
+            .context("failed to parse policy")?;
+        Ok(Self {
             id,
             saddr,
             selector,
             policy,
-            aalgos: buf.aalgos(),
-            ealgos: buf.ealgos(),
-            calgos: buf.calgos(),
-            seq: buf.seq(),
+            aalgos: raw.aalgos,
+            ealgos: raw.ealgos,
+            calgos: raw.calgos,
+            seq: raw.seq,
         })
+    }
+}
+
+impl From<&UserAcquire> for UserAcquireBuffer {
+    fn from(value: &UserAcquire) -> Self {
+        let mut id = [0u8; XFRM_ID_LEN];
+        id.copy_from_slice(IdBuffer::from(&value.id).as_bytes());
+        let mut saddr = [0u8; XFRM_ADDRESS_LEN];
+        saddr.copy_from_slice(AddressBuffer::from(&value.saddr).as_bytes());
+        let mut selector = [0u8; XFRM_SELECTOR_LEN];
+        selector
+            .copy_from_slice(SelectorBuffer::from(&value.selector).as_bytes());
+        let mut policy = [0u8; XFRM_USER_POLICY_INFO_LEN];
+        policy.copy_from_slice(
+            UserPolicyInfoBuffer::from(&value.policy).as_bytes(),
+        );
+        Self {
+            id,
+            saddr,
+            selector,
+            policy,
+            aalgos: value.aalgos,
+            ealgos: value.ealgos,
+            calgos: value.calgos,
+            seq: value.seq,
+        }
     }
 }
 
 impl Emitable for UserAcquire {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_ACQUIRE_LEN
+        size_of::<UserAcquireBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserAcquireBuffer::new(buffer);
-        self.id.emit(buffer.id_mut());
-        self.saddr.emit(buffer.saddr_mut());
-        self.selector.emit(buffer.selector_mut());
-        self.policy.emit(buffer.policy_mut());
-        buffer.set_aalgos(self.aalgos);
-        buffer.set_ealgos(self.ealgos);
-        buffer.set_calgos(self.calgos);
-        buffer.set_seq(self.seq);
+        let raw = UserAcquireBuffer::from(self);
+        buffer[..size_of::<UserAcquireBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }

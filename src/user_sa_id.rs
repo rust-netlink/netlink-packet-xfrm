@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
-use std::net::IpAddr;
+use std::{mem::size_of, net::IpAddr};
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     constants::{AF_INET, AF_INET6},
-    Address, AddressBuffer, XFRM_ADDRESS_LEN,
+    Address, XFRM_ADDRESS_LEN,
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
@@ -18,44 +18,68 @@ pub struct UserSaId {
     pub proto: u8,
 }
 
-const DADDR_FIELD: Range<usize> = 0..XFRM_ADDRESS_LEN;
-const SPI_FIELD: Range<usize> = DADDR_FIELD.end..(DADDR_FIELD.end + 4);
-const FAMILY_FIELD: Range<usize> = SPI_FIELD.end..(SPI_FIELD.end + 2);
-const PROTO_FIELD: usize = FAMILY_FIELD.end;
+pub const XFRM_USER_SA_ID_LEN: usize = 24;
 
-pub const XFRM_USER_SA_ID_LEN: usize = (PROTO_FIELD + 7) & !7; // 24
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserSaIdBuffer {
+    daddr: [u8; XFRM_ADDRESS_LEN],
+    spi: u32,
+    family: u16,
+    proto: u8,
+    padding: [u8; 1],
+}
 
-buffer!(UserSaIdBuffer(XFRM_USER_SA_ID_LEN) {
-    daddr: (slice, DADDR_FIELD),
-    spi: (u32, SPI_FIELD),
-    family: (u16, FAMILY_FIELD),
-    proto: (u8, PROTO_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserSaIdBuffer<&T>> for UserSaId {
-    fn parse(buf: &UserSaIdBuffer<&T>) -> Result<Self, DecodeError> {
-        let daddr = Address::parse(&AddressBuffer::new(&buf.daddr()))
-            .context("failed to parse daddr")?;
-        Ok(UserSaId {
+impl UserSaId {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserSaIdBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserSaIdBuffer>(),
+                )
+            })?;
+        let daddr =
+            Address::parse(&raw.daddr[..]).context("failed to parse daddr")?;
+        Ok(Self {
             daddr,
-            spi: u32::from_be(buf.spi()),
-            family: buf.family(),
-            proto: buf.proto(),
+            spi: u32::from_be(raw.spi),
+            family: raw.family,
+            proto: raw.proto,
         })
+    }
+}
+
+impl From<&UserSaId> for UserSaIdBuffer {
+    fn from(value: &UserSaId) -> Self {
+        Self {
+            daddr: value.daddr.addr,
+            spi: value.spi.to_be(),
+            family: value.family,
+            proto: value.proto,
+            padding: [0; 1],
+        }
     }
 }
 
 impl Emitable for UserSaId {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_SA_ID_LEN
+        size_of::<UserSaIdBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserSaIdBuffer::new(buffer);
-        self.daddr.emit(buffer.daddr_mut());
-        buffer.set_spi(self.spi.to_be());
-        buffer.set_family(self.family);
-        buffer.set_proto(self.proto);
+        let raw = UserSaIdBuffer::from(self);
+        buffer[..size_of::<UserSaIdBuffer>()].copy_from_slice(raw.as_bytes());
     }
 }
 

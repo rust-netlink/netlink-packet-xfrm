@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::{
-    policy::{DefaultMessageBuffer, POLICY_DEFAULT_HEADER_LEN},
-    UserPolicyDefault, UserPolicyDefaultBuffer,
-};
+use crate::{UserPolicyDefault, UserPolicyDefaultBuffer};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct DefaultMessage {
@@ -14,7 +13,7 @@ pub struct DefaultMessage {
 
 impl Emitable for DefaultMessage {
     fn buffer_len(&self) -> usize {
-        POLICY_DEFAULT_HEADER_LEN
+        size_of::<UserPolicyDefaultBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
@@ -22,14 +21,12 @@ impl Emitable for DefaultMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<DefaultMessageBuffer<&'a T>>
-    for DefaultMessage
-{
-    fn parse(buf: &DefaultMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl Parseable<[u8]> for DefaultMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
         let user_policy = UserPolicyDefault::parse(
-            &UserPolicyDefaultBuffer::new(&buf.user_policy()),
+            &buf[..size_of::<UserPolicyDefaultBuffer>()],
         )
         .context("failed to parse policy default message user policy")?;
-        Ok(DefaultMessage { user_policy })
+        Ok(Self { user_policy })
     }
 }

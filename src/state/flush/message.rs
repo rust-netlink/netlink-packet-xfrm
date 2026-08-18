@@ -2,8 +2,6 @@
 
 use netlink_packet_core::{DecodeError, Emitable, Parseable};
 
-use crate::state::{FlushMessageBuffer, STATE_FLUSH_HEADER_LEN};
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct FlushMessage {
     pub protocol: u8,
@@ -11,21 +9,19 @@ pub struct FlushMessage {
 
 impl Emitable for FlushMessage {
     fn buffer_len(&self) -> usize {
-        STATE_FLUSH_HEADER_LEN
+        1
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = FlushMessageBuffer::new(buffer);
-        buffer.set_protocol(self.protocol);
+        buffer[0] = self.protocol;
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<FlushMessageBuffer<&'a T>>
-    for FlushMessage
-{
-    fn parse(buf: &FlushMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        Ok(FlushMessage {
-            protocol: buf.protocol(),
-        })
+impl Parseable<[u8]> for FlushMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        if buf.is_empty() {
+            return Err(DecodeError::buffer_too_small(buf.len(), 1));
+        }
+        Ok(Self { protocol: buf[0] })
     }
 }

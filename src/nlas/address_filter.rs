@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
-use std::net::IpAddr;
+use std::{mem::size_of, net::IpAddr};
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
-    address::XFRM_ADDRESS_LEN,
     constants::{AF_INET, AF_INET6},
-    Address, AddressBuffer,
+    Address, AddressBuffer, XFRM_ADDRESS_LEN,
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
@@ -20,53 +19,76 @@ pub struct AddressFilter {
     pub dplen: u8,
 }
 
-const SADDR_FIELD: Range<usize> = 0..XFRM_ADDRESS_LEN;
-const DADDR_FIELD: Range<usize> =
-    SADDR_FIELD.end..(SADDR_FIELD.end + XFRM_ADDRESS_LEN);
-const FAMILY_FIELD: Range<usize> = DADDR_FIELD.end..(DADDR_FIELD.end + 2);
-const SPLEN_FIELD: usize = FAMILY_FIELD.end;
-const DPLEN_FIELD: usize = SPLEN_FIELD + 1;
-
 pub const XFRM_ADDRESS_FILTER_LEN: usize = 36;
 
-buffer!(AddressFilterBuffer(XFRM_ADDRESS_FILTER_LEN) {
-    saddr: (slice, SADDR_FIELD),
-    daddr: (slice, DADDR_FIELD),
-    family: (u16, FAMILY_FIELD),
-    splen: (u8, SPLEN_FIELD),
-    dplen: (u8, DPLEN_FIELD)
-});
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct AddressFilterBuffer {
+    saddr: [u8; XFRM_ADDRESS_LEN],
+    daddr: [u8; XFRM_ADDRESS_LEN],
+    family: u16,
+    splen: u8,
+    dplen: u8,
+}
 
-impl<T: AsRef<[u8]> + ?Sized> Parseable<AddressFilterBuffer<&T>>
-    for AddressFilter
-{
-    fn parse(buf: &AddressFilterBuffer<&T>) -> Result<Self, DecodeError> {
-        let saddr = Address::parse(&AddressBuffer::new(&buf.saddr()))
+impl AddressFilter {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            AddressFilterBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<AddressFilterBuffer>(),
+                )
+            })?;
+        let saddr = Address::parse(&raw.saddr[..])
             .context("failed to parse saddr address")?;
-        let daddr = Address::parse(&AddressBuffer::new(&buf.daddr()))
+        let daddr = Address::parse(&raw.daddr[..])
             .context("failed to parse daddr address")?;
-        Ok(AddressFilter {
+        Ok(Self {
             saddr,
             daddr,
-            family: buf.family(),
-            splen: buf.splen(),
-            dplen: buf.dplen(),
+            family: raw.family,
+            splen: raw.splen,
+            dplen: raw.dplen,
         })
+    }
+}
+
+impl From<&AddressFilter> for AddressFilterBuffer {
+    fn from(value: &AddressFilter) -> Self {
+        let mut saddr = [0u8; XFRM_ADDRESS_LEN];
+        saddr.copy_from_slice(AddressBuffer::from(&value.saddr).as_bytes());
+        let mut daddr = [0u8; XFRM_ADDRESS_LEN];
+        daddr.copy_from_slice(AddressBuffer::from(&value.daddr).as_bytes());
+        Self {
+            saddr,
+            daddr,
+            family: value.family,
+            splen: value.splen,
+            dplen: value.dplen,
+        }
     }
 }
 
 impl Emitable for AddressFilter {
     fn buffer_len(&self) -> usize {
-        XFRM_ADDRESS_FILTER_LEN
+        size_of::<AddressFilterBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = AddressFilterBuffer::new(buffer);
-        self.saddr.emit(buffer.saddr_mut());
-        self.daddr.emit(buffer.daddr_mut());
-        buffer.set_family(self.family);
-        buffer.set_splen(self.splen);
-        buffer.set_dplen(self.dplen);
+        let raw = AddressFilterBuffer::from(self);
+        buffer[..size_of::<AddressFilterBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }
 

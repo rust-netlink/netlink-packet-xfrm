@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{Address, AddressBuffer, XFRM_ADDRESS_LEN};
 
@@ -14,45 +15,70 @@ pub struct EncapTmpl {
     pub encap_oa: Address,
 }
 
-const TYPE_FIELD: Range<usize> = 0..2;
-const SPORT_FIELD: Range<usize> = TYPE_FIELD.end..(TYPE_FIELD.end + 2);
-const DPORT_FIELD: Range<usize> = SPORT_FIELD.end..(SPORT_FIELD.end + 2);
-const OA_FIELD: Range<usize> =
-    (DPORT_FIELD.end + 2)..(DPORT_FIELD.end + 2 + XFRM_ADDRESS_LEN);
+pub const XFRM_ENCAP_TMPL_LEN: usize = 24;
 
-pub const XFRM_ENCAP_TMPL_LEN: usize = OA_FIELD.end; // 24
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct EncapTmplBuffer {
+    encap_type: u16,
+    encap_sport: u16,
+    encap_dport: u16,
+    padding: [u8; 2],
+    encap_oa: [u8; XFRM_ADDRESS_LEN],
+}
 
-buffer!(EncapTmplBuffer(XFRM_ENCAP_TMPL_LEN) {
-    encap_type: (u16, TYPE_FIELD),
-    encap_sport: (u16, SPORT_FIELD),
-    encap_dport: (u16, DPORT_FIELD),
-    /* 2 bytes padding */
-    encap_oa: (slice, OA_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<EncapTmplBuffer<&T>> for EncapTmpl {
-    fn parse(buf: &EncapTmplBuffer<&T>) -> Result<Self, DecodeError> {
-        let encap_oa = Address::parse(&AddressBuffer::new(&buf.encap_oa()))
+impl EncapTmpl {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            EncapTmplBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<EncapTmplBuffer>(),
+                )
+            })?;
+        let encap_oa = Address::parse(&raw.encap_oa[..])
             .context("failed to parse oa address")?;
-        Ok(EncapTmpl {
-            encap_type: buf.encap_type(),
-            encap_sport: u16::from_be(buf.encap_sport()),
-            encap_dport: u16::from_be(buf.encap_dport()),
+        Ok(Self {
+            encap_type: raw.encap_type,
+            encap_sport: u16::from_be(raw.encap_sport),
+            encap_dport: u16::from_be(raw.encap_dport),
             encap_oa,
         })
     }
 }
 
+impl From<&EncapTmpl> for EncapTmplBuffer {
+    fn from(value: &EncapTmpl) -> Self {
+        let mut encap_oa = [0u8; XFRM_ADDRESS_LEN];
+        encap_oa
+            .copy_from_slice(AddressBuffer::from(&value.encap_oa).as_bytes());
+        Self {
+            encap_type: value.encap_type,
+            encap_sport: value.encap_sport.to_be(),
+            encap_dport: value.encap_dport.to_be(),
+            padding: [0; 2],
+            encap_oa,
+        }
+    }
+}
+
 impl Emitable for EncapTmpl {
     fn buffer_len(&self) -> usize {
-        XFRM_ENCAP_TMPL_LEN
+        size_of::<EncapTmplBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = EncapTmplBuffer::new(buffer);
-        buffer.set_encap_type(self.encap_type);
-        buffer.set_encap_sport(self.encap_sport.to_be());
-        buffer.set_encap_dport(self.encap_dport.to_be());
-        self.encap_oa.emit(buffer.encap_oa_mut());
+        let raw = EncapTmplBuffer::from(self);
+        buffer[..size_of::<EncapTmplBuffer>()].copy_from_slice(raw.as_bytes());
     }
 }

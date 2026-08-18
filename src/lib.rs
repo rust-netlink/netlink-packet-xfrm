@@ -6,9 +6,6 @@ pub use address::*;
 pub mod async_event_id;
 pub use async_event_id::*;
 
-mod buffer;
-pub use buffer::*;
-
 pub mod constants;
 pub use constants::*;
 
@@ -72,9 +69,6 @@ pub use user_sa_info::*;
 
 pub mod user_spi_info;
 pub use user_spi_info::*;
-
-#[macro_use]
-extern crate netlink_packet_core;
 
 #[cfg(test)]
 mod tests;

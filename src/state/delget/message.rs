@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::{
-    state::{DelGetMessageBuffer, GetDumpMessageBuffer},
-    UserSaId, UserSaIdBuffer, XfrmAttrs,
-};
+use crate::{nlas::VecXfrmAttrs, UserSaId, UserSaIdBuffer, XfrmAttrs};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct DelGetMessage {
@@ -26,30 +25,17 @@ impl Emitable for DelGetMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<DelGetMessageBuffer<&'a T>>
-    for DelGetMessage
-{
-    fn parse(buf: &DelGetMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl Parseable<[u8]> for DelGetMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
         let user_sa_id =
-            UserSaId::parse(&UserSaIdBuffer::new(&buf.user_sa_id()))
+            UserSaId::parse(&buf[..size_of::<UserSaIdBuffer>()])
                 .context("failed to parse state delget message user sa id")?;
-        Ok(DelGetMessage {
+        Ok(Self {
             user_sa_id,
-            nlas: Vec::<XfrmAttrs>::parse(buf)
-                .context("failed to parse state delget message NLAs")?,
+            nlas: VecXfrmAttrs::parse(&buf[size_of::<UserSaIdBuffer>()..])
+                .context("failed to parse state delget message NLAs")?
+                .0,
         })
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<DelGetMessageBuffer<&'a T>>
-    for Vec<XfrmAttrs>
-{
-    fn parse(buf: &DelGetMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(XfrmAttrs::parse(&nla_buf?)?);
-        }
-        Ok(nlas)
     }
 }
 
@@ -68,25 +54,12 @@ impl Emitable for GetDumpMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<GetDumpMessageBuffer<&'a T>>
-    for GetDumpMessage
-{
-    fn parse(buf: &GetDumpMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        Ok(GetDumpMessage {
-            nlas: Vec::<XfrmAttrs>::parse(buf)
-                .context("failed to parse state delget message NLAs")?,
+impl Parseable<[u8]> for GetDumpMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        Ok(Self {
+            nlas: VecXfrmAttrs::parse(buf)
+                .context("failed to parse state delget message NLAs")?
+                .0,
         })
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<GetDumpMessageBuffer<&'a T>>
-    for Vec<XfrmAttrs>
-{
-    fn parse(buf: &GetDumpMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(XfrmAttrs::parse(&nla_buf?)?);
-        }
-        Ok(nlas)
     }
 }

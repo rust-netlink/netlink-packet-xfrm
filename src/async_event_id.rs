@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     Address, AddressBuffer, UserSaId, UserSaIdBuffer, XFRM_ADDRESS_LEN,
@@ -17,48 +18,72 @@ pub struct AsyncEventId {
     pub reqid: u32,
 }
 
-const SA_ID_FIELD: Range<usize> = 0..XFRM_USER_SA_ID_LEN;
-const SADDR_FIELD: Range<usize> =
-    SA_ID_FIELD.end..(SA_ID_FIELD.end + XFRM_ADDRESS_LEN);
-const FLAGS_FIELD: Range<usize> = SADDR_FIELD.end..(SADDR_FIELD.end + 4);
-const REQID_FIELD: Range<usize> = FLAGS_FIELD.end..(FLAGS_FIELD.end + 4);
+pub const XFRM_ASYNC_EVENT_ID_LEN: usize = 48;
 
-pub const XFRM_ASYNC_EVENT_ID_LEN: usize = (REQID_FIELD.end + 7) & !7; // 48
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct AsyncEventIdBuffer {
+    sa_id: [u8; XFRM_USER_SA_ID_LEN],
+    saddr: [u8; XFRM_ADDRESS_LEN],
+    flags: u32,
+    reqid: u32,
+}
 
-buffer!(AsyncEventIdBuffer(XFRM_ASYNC_EVENT_ID_LEN) {
-    sa_id: (slice, SA_ID_FIELD),
-    saddr: (slice, SADDR_FIELD),
-    flags: (u32, FLAGS_FIELD),
-    reqid: (u32, REQID_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<AsyncEventIdBuffer<&T>>
-    for AsyncEventId
-{
-    fn parse(buf: &AsyncEventIdBuffer<&T>) -> Result<Self, DecodeError> {
-        let sa_id = UserSaId::parse(&UserSaIdBuffer::new(&buf.sa_id()))
-            .context("failed to parse sa_id")?;
-        let saddr = Address::parse(&AddressBuffer::new(&buf.saddr()))
-            .context("failed to parse saddr")?;
-        Ok(AsyncEventId {
+impl AsyncEventId {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            AsyncEventIdBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<AsyncEventIdBuffer>(),
+                )
+            })?;
+        let sa_id =
+            UserSaId::parse(&raw.sa_id[..]).context("failed to parse sa_id")?;
+        let saddr =
+            Address::parse(&raw.saddr[..]).context("failed to parse saddr")?;
+        Ok(Self {
             sa_id,
             saddr,
-            flags: buf.flags(),
-            reqid: buf.reqid(),
+            flags: raw.flags,
+            reqid: raw.reqid,
         })
+    }
+}
+
+impl From<&AsyncEventId> for AsyncEventIdBuffer {
+    fn from(value: &AsyncEventId) -> Self {
+        let mut sa_id = [0u8; XFRM_USER_SA_ID_LEN];
+        sa_id.copy_from_slice(UserSaIdBuffer::from(&value.sa_id).as_bytes());
+        let mut saddr = [0u8; XFRM_ADDRESS_LEN];
+        saddr.copy_from_slice(AddressBuffer::from(&value.saddr).as_bytes());
+        Self {
+            sa_id,
+            saddr,
+            flags: value.flags,
+            reqid: value.reqid,
+        }
     }
 }
 
 impl Emitable for AsyncEventId {
     fn buffer_len(&self) -> usize {
-        XFRM_ASYNC_EVENT_ID_LEN
+        size_of::<AsyncEventIdBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = AsyncEventIdBuffer::new(buffer);
-        self.sa_id.emit(buffer.sa_id_mut());
-        self.saddr.emit(buffer.saddr_mut());
-        buffer.set_flags(self.flags);
-        buffer.set_reqid(self.reqid);
+        let raw = AsyncEventIdBuffer::from(self);
+        buffer[..size_of::<AsyncEventIdBuffer>()]
+            .copy_from_slice(raw.as_bytes());
     }
 }

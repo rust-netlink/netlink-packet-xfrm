@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
+use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{UserSaInfo, UserSaInfoBuffer, XFRM_USER_SA_INFO_LEN};
 
@@ -12,35 +13,63 @@ pub struct UserExpire {
     pub hard: u8,
 }
 
-const STATE_FIELD: Range<usize> = 0..XFRM_USER_SA_INFO_LEN;
-const HARD_FIELD: usize = STATE_FIELD.end;
+pub const XFRM_USER_EXPIRE_LEN: usize = 232;
 
-pub const XFRM_USER_EXPIRE_LEN: usize = (XFRM_USER_SA_INFO_LEN + 1 + 7) & !7; // 232
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserExpireBuffer {
+    state: [u8; XFRM_USER_SA_INFO_LEN],
+    hard: u8,
+    padding: [u8; 7],
+}
 
-buffer!(UserExpireBuffer(XFRM_USER_EXPIRE_LEN) {
-    state: (slice, STATE_FIELD),
-    hard: (u8, HARD_FIELD)
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserExpireBuffer<&T>> for UserExpire {
-    fn parse(buf: &UserExpireBuffer<&T>) -> Result<Self, DecodeError> {
-        let state = UserSaInfo::parse(&UserSaInfoBuffer::new(&buf.state()))
+impl UserExpire {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserExpireBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserExpireBuffer>(),
+                )
+            })?;
+        let state = UserSaInfo::parse(&raw.state[..])
             .context("failed to parse user sa info")?;
-        Ok(UserExpire {
+        Ok(Self {
             state,
-            hard: buf.hard(),
+            hard: raw.hard,
         })
+    }
+}
+
+impl From<&UserExpire> for UserExpireBuffer {
+    fn from(value: &UserExpire) -> Self {
+        let mut state = [0u8; XFRM_USER_SA_INFO_LEN];
+        state.copy_from_slice(UserSaInfoBuffer::from(&value.state).as_bytes());
+        Self {
+            state,
+            hard: value.hard,
+            padding: [0; 7],
+        }
     }
 }
 
 impl Emitable for UserExpire {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_EXPIRE_LEN
+        size_of::<UserExpireBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserExpireBuffer::new(buffer);
-        self.state.emit(buffer.state_mut());
-        buffer.set_hard(self.hard);
+        let raw = UserExpireBuffer::from(self);
+        buffer[..size_of::<UserExpireBuffer>()].copy_from_slice(raw.as_bytes());
     }
 }

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::{
-    MigrateMessageBuffer, UserPolicyId, UserPolicyIdBuffer, XfrmAttrs,
-};
+use crate::{nlas::VecXfrmAttrs, UserPolicyId, UserPolicyIdBuffer, XfrmAttrs};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct MigrateMessage {
@@ -25,30 +25,16 @@ impl Emitable for MigrateMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<MigrateMessageBuffer<&'a T>>
-    for MigrateMessage
-{
-    fn parse(buf: &MigrateMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let user_policy_id = UserPolicyId::parse(&UserPolicyIdBuffer::new(
-            &buf.user_policy_id(),
-        ))
-        .context("failed to parse migrate message user policy id")?;
-        Ok(MigrateMessage {
+impl Parseable<[u8]> for MigrateMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let user_policy_id =
+            UserPolicyId::parse(&buf[..size_of::<UserPolicyIdBuffer>()])
+                .context("failed to parse migrate message user policy id")?;
+        Ok(Self {
             user_policy_id,
-            nlas: Vec::<XfrmAttrs>::parse(buf)
-                .context("failed to parse monitor migrate message NLAs")?,
+            nlas: VecXfrmAttrs::parse(&buf[size_of::<UserPolicyIdBuffer>()..])
+                .context("failed to parse monitor migrate message NLAs")?
+                .0,
         })
-    }
-}
-
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<MigrateMessageBuffer<&'a T>>
-    for Vec<XfrmAttrs>
-{
-    fn parse(buf: &MigrateMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
-        for nla_buf in buf.nlas() {
-            nlas.push(XfrmAttrs::parse(&nla_buf?)?);
-        }
-        Ok(nlas)
     }
 }

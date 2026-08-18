@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use core::mem::size_of;
+
 use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
 
-use crate::{ExpireMessageBuffer, UserExpire, UserExpireBuffer};
+use crate::{UserExpire, UserExpireBuffer};
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct ExpireMessage {
@@ -19,12 +21,10 @@ impl Emitable for ExpireMessage {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<ExpireMessageBuffer<&'a T>>
-    for ExpireMessage
-{
-    fn parse(buf: &ExpireMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let expire = UserExpire::parse(&UserExpireBuffer::new(&buf.expire()))
+impl Parseable<[u8]> for ExpireMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let expire = UserExpire::parse(&buf[..size_of::<UserExpireBuffer>()])
             .context("failed to parse monitor expire message info")?;
-        Ok(ExpireMessage { expire })
+        Ok(Self { expire })
     }
 }

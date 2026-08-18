@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use core::ops::Range;
-use std::net::IpAddr;
+use std::{mem::size_of, net::IpAddr};
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     constants::{AF_INET, AF_INET6},
@@ -29,95 +29,118 @@ pub struct UserSaInfo {
     pub flags: u8,
 }
 
-const SELECTOR_FIELD: Range<usize> = 0..XFRM_SELECTOR_LEN;
-const ID_FIELD: Range<usize> =
-    SELECTOR_FIELD.end..(SELECTOR_FIELD.end + XFRM_ID_LEN);
-const SADDR_FIELD: Range<usize> =
-    ID_FIELD.end..(ID_FIELD.end + XFRM_ADDRESS_LEN);
-const LIFETIME_CFG_FIELD: Range<usize> =
-    SADDR_FIELD.end..(SADDR_FIELD.end + XFRM_LIFETIME_CONFIG_LEN);
-const LIFETIME_CUR_FIELD: Range<usize> =
-    LIFETIME_CFG_FIELD.end..(LIFETIME_CFG_FIELD.end + XFRM_LIFETIME_LEN);
-const STATS_FIELD: Range<usize> =
-    LIFETIME_CUR_FIELD.end..(LIFETIME_CUR_FIELD.end + XFRM_STATS_LEN);
-const SEQ_FIELD: Range<usize> = STATS_FIELD.end..(STATS_FIELD.end + 4);
-const REQID_FIELD: Range<usize> = SEQ_FIELD.end..(SEQ_FIELD.end + 4);
-const FAMILY_FIELD: Range<usize> = REQID_FIELD.end..(REQID_FIELD.end + 2);
-const MODE_FIELD: usize = FAMILY_FIELD.end;
-const REPLAY_WINDOW_FIELD: usize = MODE_FIELD + 1;
-const FLAGS_FIELD: usize = REPLAY_WINDOW_FIELD + 1;
+pub const XFRM_USER_SA_INFO_LEN: usize = 224;
 
-pub const XFRM_USER_SA_INFO_LEN: usize = FLAGS_FIELD + 8; //224
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+    Unaligned,
+)]
+#[repr(C, packed)]
+pub struct UserSaInfoBuffer {
+    selector: [u8; XFRM_SELECTOR_LEN],
+    id: [u8; XFRM_ID_LEN],
+    saddr: [u8; XFRM_ADDRESS_LEN],
+    lifetime_cfg: [u8; XFRM_LIFETIME_CONFIG_LEN],
+    lifetime_cur: [u8; XFRM_LIFETIME_LEN],
+    stats: [u8; XFRM_STATS_LEN],
+    seq: u32,
+    reqid: u32,
+    family: u16,
+    mode: u8,
+    replay_window: u8,
+    flags: u8,
+    padding: [u8; 7],
+}
 
-buffer!(UserSaInfoBuffer(XFRM_USER_SA_INFO_LEN) {
-    selector: (slice, SELECTOR_FIELD),
-    id: (slice, ID_FIELD),
-    saddr: (slice, SADDR_FIELD),
-    lifetime_cfg: (slice, LIFETIME_CFG_FIELD),
-    lifetime_cur: (slice, LIFETIME_CUR_FIELD),
-    stats: (slice, STATS_FIELD),
-    seq: (u32, SEQ_FIELD),
-    reqid: (u32, REQID_FIELD),
-    family: (u16, FAMILY_FIELD),
-    mode: (u8, MODE_FIELD),
-    replay_window: (u8, REPLAY_WINDOW_FIELD),
-    flags: (u8, FLAGS_FIELD)
-    /* 8 bytes padding */
-});
-
-impl<T: AsRef<[u8]> + ?Sized> Parseable<UserSaInfoBuffer<&T>> for UserSaInfo {
-    fn parse(buf: &UserSaInfoBuffer<&T>) -> Result<Self, DecodeError> {
-        let selector = Selector::parse(&SelectorBuffer::new(&buf.selector()))
+impl UserSaInfo {
+    pub fn parse(payload: &[u8]) -> Result<Self, DecodeError> {
+        let (raw, _) =
+            UserSaInfoBuffer::ref_from_prefix(payload).map_err(|_| {
+                DecodeError::buffer_too_small(
+                    payload.len(),
+                    size_of::<UserSaInfoBuffer>(),
+                )
+            })?;
+        let selector = Selector::parse(&raw.selector[..])
             .context("failed to parse selector")?;
-        let id = Id::parse(&IdBuffer::new(&buf.id()))
-            .context("failed to parse id")?;
-        let saddr = Address::parse(&AddressBuffer::new(&buf.saddr()))
-            .context("failed to parse saddr")?;
-        let lifetime_cfg = LifetimeConfig::parse(&LifetimeConfigBuffer::new(
-            &buf.lifetime_cfg(),
-        ))
-        .context("failed to parse lifetime config")?;
-        let lifetime_cur =
-            Lifetime::parse(&LifetimeBuffer::new(&buf.lifetime_cur()))
-                .context("failed to parse lifetime current")?;
-        let stats = Stats::parse(&StatsBuffer::new(&buf.stats()))
-            .context("failed to parse stats")?;
-        Ok(UserSaInfo {
+        let id = Id::parse(&raw.id[..]).context("failed to parse id")?;
+        let saddr =
+            Address::parse(&raw.saddr[..]).context("failed to parse saddr")?;
+        let lifetime_cfg = LifetimeConfig::parse(&raw.lifetime_cfg[..])
+            .context("failed to parse lifetime config")?;
+        let lifetime_cur = Lifetime::parse(&raw.lifetime_cur[..])
+            .context("failed to parse lifetime current")?;
+        let stats =
+            Stats::parse(&raw.stats[..]).context("failed to parse stats")?;
+        Ok(Self {
             selector,
             id,
             saddr,
             lifetime_cfg,
             lifetime_cur,
             stats,
-            seq: buf.seq(),
-            reqid: buf.reqid(),
-            family: buf.family(),
-            mode: buf.mode(),
-            replay_window: buf.replay_window(),
-            flags: buf.flags(),
+            seq: raw.seq,
+            reqid: raw.reqid,
+            family: raw.family,
+            mode: raw.mode,
+            replay_window: raw.replay_window,
+            flags: raw.flags,
         })
+    }
+}
+
+impl From<&UserSaInfo> for UserSaInfoBuffer {
+    fn from(value: &UserSaInfo) -> Self {
+        let mut selector = [0u8; XFRM_SELECTOR_LEN];
+        selector
+            .copy_from_slice(SelectorBuffer::from(&value.selector).as_bytes());
+        let mut id = [0u8; XFRM_ID_LEN];
+        id.copy_from_slice(IdBuffer::from(&value.id).as_bytes());
+        let mut saddr = [0u8; XFRM_ADDRESS_LEN];
+        saddr.copy_from_slice(AddressBuffer::from(&value.saddr).as_bytes());
+        let mut lifetime_cfg = [0u8; XFRM_LIFETIME_CONFIG_LEN];
+        lifetime_cfg.copy_from_slice(
+            LifetimeConfigBuffer::from(&value.lifetime_cfg).as_bytes(),
+        );
+        let mut lifetime_cur = [0u8; XFRM_LIFETIME_LEN];
+        lifetime_cur.copy_from_slice(
+            LifetimeBuffer::from(&value.lifetime_cur).as_bytes(),
+        );
+        let mut stats = [0u8; XFRM_STATS_LEN];
+        stats.copy_from_slice(StatsBuffer::from(&value.stats).as_bytes());
+        Self {
+            selector,
+            id,
+            saddr,
+            lifetime_cfg,
+            lifetime_cur,
+            stats,
+            seq: value.seq,
+            reqid: value.reqid,
+            family: value.family,
+            mode: value.mode,
+            replay_window: value.replay_window,
+            flags: value.flags,
+            padding: [0; 7],
+        }
     }
 }
 
 impl Emitable for UserSaInfo {
     fn buffer_len(&self) -> usize {
-        XFRM_USER_SA_INFO_LEN
+        size_of::<UserSaInfoBuffer>()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = UserSaInfoBuffer::new(buffer);
-        self.selector.emit(buffer.selector_mut());
-        self.id.emit(buffer.id_mut());
-        self.saddr.emit(buffer.saddr_mut());
-        self.lifetime_cfg.emit(buffer.lifetime_cfg_mut());
-        self.lifetime_cur.emit(buffer.lifetime_cur_mut());
-        self.stats.emit(buffer.stats_mut());
-        buffer.set_seq(self.seq);
-        buffer.set_reqid(self.reqid);
-        buffer.set_family(self.family);
-        buffer.set_mode(self.mode);
-        buffer.set_replay_window(self.replay_window);
-        buffer.set_flags(self.flags);
+        let raw = UserSaInfoBuffer::from(self);
+        buffer[..size_of::<UserSaInfoBuffer>()].copy_from_slice(raw.as_bytes());
     }
 }
 
