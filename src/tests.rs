@@ -745,8 +745,9 @@ fn parse_emit_xfrm_pol_12() {
         NetlinkMessage::<XfrmMessage>::deserialize(&P12_BYTES)
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; P12_BYTES.len()]; // the sample packet has one extra byte of padding that isn't parsed
-                                            //reserialize
+    let mut buf = vec![0; P12_BYTES.len()]; // the sample packet has one extra
+                                            // byte of padding that isn't parsed
+                                            // reserialize
     deserialized_packet.serialize(&mut buf[..]);
     assert_eq!(&buf[..], &P12_BYTES[..]);
 
