@@ -3,7 +3,6 @@ name = "netlink-packet-xfrm"
 version = "0.5.0"
 authors = ["Scott Zuk <zooknotic@proton.me>"]
 edition = "2021"
-homepage = "https://github.com/rust-netlink/netlink-packet-xfrm"
 repository = "https://github.com/rust-netlink/netlink-packet-xfrm"
 keywords = ["netlink", "linux", "ipsec", "xfrm"]
 license = "MIT"
@@ -17,5 +16,5 @@ zerocopy = { version = "0.8", features = ["derive"] }
 
 [dev-dependencies]
 lazy_static = "1.5.0"
-netlink-proto = { version = "0.13" }
+netlink-proto = { version = "0.14.1" }
 netlink-sys = { version = "0.9" }
