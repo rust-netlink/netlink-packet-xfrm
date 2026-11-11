@@ -6,8 +6,7 @@ use std::{
 };
 
 use netlink_packet_core::{NetlinkHeader, NetlinkMessage, NetlinkPayload, *};
-use netlink_proto::sys::protocols::NETLINK_XFRM;
-use netlink_sys::{Socket, SocketAddr};
+use netlink_sys::{protocols::NETLINK_XFRM, Socket, SocketAddr};
 
 use crate::{
     constants::*,
@@ -25,7 +24,7 @@ use crate::{
 #[test]
 fn parse_xfrm_pol_1() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P1_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P1_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
 
@@ -41,18 +40,17 @@ fn parse_xfrm_pol_1() {
 
 #[test]
 fn emit_xfrm_pol_1() {
-    let mut buf = vec![0; P1_BYTES.len()];
+    let mut buf = Vec::new();
 
     let mut nl_hdr = NetlinkHeader::default();
     nl_hdr.sequence_number = 1650675114;
     nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
 
-    let mut packet = NetlinkMessage::new(
+    let packet = NetlinkMessage::new(
         nl_hdr,
         XfrmMessage::FlushPolicy(FlushMessage::default()).into(),
     );
-    packet.finalize();
-    packet.serialize(&mut buf[..]);
+    packet.emit(&mut buf).unwrap();
     println!("{packet:?}");
     assert_eq!(&buf[..], &P1_BYTES[..]);
 
@@ -64,7 +62,7 @@ fn emit_xfrm_pol_1() {
 #[test]
 fn parse_xfrm_pol_2() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P2_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P2_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
 
@@ -80,7 +78,7 @@ fn parse_xfrm_pol_2() {
 
 #[test]
 fn emit_xfrm_pol_2() {
-    let mut buf = vec![0; P2_BYTES.len()];
+    let mut buf = Vec::new();
     let flush_payload = FlushMessage {
         nlas: vec![XfrmAttrs::PolicyType(UserPolicyType {
             ptype: XFRM_POLICY_TYPE_SUB,
@@ -91,12 +89,11 @@ fn emit_xfrm_pol_2() {
     nl_hdr.sequence_number = 1650861160;
     nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
 
-    let mut packet = NetlinkMessage::new(
+    let packet = NetlinkMessage::new(
         nl_hdr,
         XfrmMessage::FlushPolicy(flush_payload).into(),
     );
-    packet.finalize();
-    packet.serialize(&mut buf[..]);
+    packet.emit(&mut buf).unwrap();
     println!("{packet:?}");
     assert_eq!(&buf[..], &P2_BYTES[..]);
 
@@ -108,7 +105,7 @@ fn emit_xfrm_pol_2() {
 #[test]
 fn parse_xfrm_pol_3() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P3_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P3_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
 
@@ -239,7 +236,7 @@ fn parse_xfrm_pol_3() {
 
 #[test]
 fn emit_xfrm_pol_3() {
-    let mut buf = vec![0; P3_BYTES.len()];
+    let mut buf = Vec::new();
 
     let upt = UserPolicyType {
         ptype: XFRM_POLICY_TYPE_SUB,
@@ -325,12 +322,11 @@ fn emit_xfrm_pol_3() {
     nl_hdr.sequence_number = 1652078034;
     nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
 
-    let mut packet = NetlinkMessage::new(
+    let packet = NetlinkMessage::new(
         nl_hdr,
         XfrmMessage::AddPolicy(modify_payload).into(),
     );
-    packet.finalize();
-    packet.serialize(&mut buf[..]);
+    packet.emit(&mut buf).unwrap();
     println!("{packet:?}");
     assert_eq!(&buf[..], &P3_BYTES[..]);
 
@@ -340,12 +336,12 @@ fn emit_xfrm_pol_3() {
 #[test]
 fn parse_emit_xfrm_pol_4() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P4_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P4_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &P4_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -361,7 +357,7 @@ fn parse_emit_xfrm_pol_4() {
 #[test]
 fn parse_xfrm_pol_5() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P5_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P5_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
 
@@ -476,7 +472,7 @@ fn parse_xfrm_pol_5() {
 
 #[test]
 fn emit_xfrm_pol_5() {
-    let mut buf = vec![0; P5_BYTES.len()];
+    let mut buf = Vec::new();
 
     let upt = UserPolicyType {
         ptype: XFRM_POLICY_TYPE_SUB,
@@ -564,12 +560,11 @@ fn emit_xfrm_pol_5() {
     nl_hdr.sequence_number = 1658818497;
     nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
 
-    let mut packet = NetlinkMessage::new(
+    let packet = NetlinkMessage::new(
         nl_hdr,
         XfrmMessage::AddPolicy(modify_payload).into(),
     );
-    packet.finalize();
-    packet.serialize(&mut buf[..]);
+    packet.emit(&mut buf).unwrap();
     println!("{packet:?}");
     assert_eq!(&buf[..], &P5_BYTES[..]);
 
@@ -579,12 +574,12 @@ fn emit_xfrm_pol_5() {
 #[test]
 fn parse_emit_xfrm_pol_6() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P6_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P6_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &P6_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -602,12 +597,12 @@ fn parse_emit_xfrm_pol_6() {
 #[test]
 fn parse_emit_xfrm_pol_7() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P7_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P7_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &P7_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -625,12 +620,12 @@ fn parse_emit_xfrm_pol_7() {
 #[test]
 fn parse_emit_xfrm_pol_8() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P8_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P8_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &P8_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -648,12 +643,12 @@ fn parse_emit_xfrm_pol_8() {
 #[test]
 fn parse_emit_xfrm_pol_9() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P9_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P9_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &P9_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -671,12 +666,12 @@ fn parse_emit_xfrm_pol_9() {
 #[test]
 fn parse_emit_xfrm_pol_10() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P10_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P10_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &P10_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -719,12 +714,12 @@ fn parse_emit_xfrm_pol_10() {
 #[test]
 fn parse_emit_xfrm_pol_11() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P11_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P11_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &P11_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -742,14 +737,17 @@ fn parse_emit_xfrm_pol_11() {
 #[test]
 fn parse_emit_xfrm_pol_12() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P12_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P12_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; P12_BYTES.len()]; // the sample packet has one extra
-                                            // byte of padding that isn't parsed
-                                            // reserialize
-    deserialized_packet.serialize(&mut buf[..]);
-    assert_eq!(&buf[..], &P12_BYTES[..]);
+    // The sample packet has one extra byte of padding that isn't parsed.
+    let mut buf = Vec::new();
+    deserialized_packet.emit(&mut buf).unwrap();
+    assert_eq!(
+        u32::from_ne_bytes(buf[..4].try_into().unwrap()) as usize,
+        buf.len()
+    );
+    assert_eq!(&buf[4..], &P12_BYTES[4..buf.len()]);
 
     match deserialized_packet.into_parts().1 {
         NetlinkPayload::InnerMessage(XfrmMessage::GetPolicyDefault(xm)) => {
@@ -766,12 +764,12 @@ fn parse_emit_xfrm_pol_12() {
 #[test]
 fn parse_emit_xfrm_pol_13() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P13_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P13_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &P13_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -789,12 +787,12 @@ fn parse_emit_xfrm_pol_13() {
 #[test]
 fn parse_emit_xfrm_pol_14() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&P14_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&P14_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &P14_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -812,12 +810,12 @@ fn parse_emit_xfrm_pol_14() {
 #[test]
 fn parse_emit_xfrm_st_1() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&S1_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&S1_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &S1_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -835,12 +833,12 @@ fn parse_emit_xfrm_st_1() {
 #[test]
 fn parse_emit_xfrm_st_2() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&S2_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&S2_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &S2_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -858,12 +856,12 @@ fn parse_emit_xfrm_st_2() {
 #[test]
 fn parse_emit_xfrm_st_3() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&S3_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&S3_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &S3_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -881,12 +879,12 @@ fn parse_emit_xfrm_st_3() {
 #[test]
 fn parse_emit_xfrm_st_4() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&S4_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&S4_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &S4_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -904,12 +902,12 @@ fn parse_emit_xfrm_st_4() {
 #[test]
 fn parse_emit_xfrm_st_5() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&S5_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&S5_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &S5_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -927,12 +925,12 @@ fn parse_emit_xfrm_st_5() {
 #[test]
 fn parse_emit_xfrm_st_6() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&S6_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&S6_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &S6_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -950,12 +948,12 @@ fn parse_emit_xfrm_st_6() {
 #[test]
 fn parse_emit_xfrm_st_7() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&S7_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&S7_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &S7_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -973,12 +971,12 @@ fn parse_emit_xfrm_st_7() {
 #[test]
 fn parse_emit_xfrm_st_8() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&S8_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&S8_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &S8_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -1010,12 +1008,12 @@ fn parse_emit_xfrm_st_8() {
 #[test]
 fn parse_emit_xfrm_st_9() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&S9_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&S9_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &S9_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -1033,12 +1031,12 @@ fn parse_emit_xfrm_st_9() {
 #[test]
 fn parse_emit_xfrm_st_10() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&S10_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&S10_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &S10_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -1056,12 +1054,12 @@ fn parse_emit_xfrm_st_10() {
 #[test]
 fn parse_emit_xfrm_mon_1() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&M1_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&M1_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &M1_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -1079,12 +1077,12 @@ fn parse_emit_xfrm_mon_1() {
 #[test]
 fn parse_emit_xfrm_mon_2() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&M2_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&M2_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &M2_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -1102,12 +1100,12 @@ fn parse_emit_xfrm_mon_2() {
 #[test]
 fn parse_emit_xfrm_mon_3() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&M3_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&M3_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &M3_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -1124,7 +1122,7 @@ fn parse_emit_xfrm_mon_3() {
 
 #[test]
 fn emit_xfrm_mon_4() {
-    let mut buf = vec![0; 256];
+    let mut buf = Vec::new();
 
     let get_async_payload = GetAsyncEventMessage {
         id: AsyncEventId {
@@ -1148,27 +1146,26 @@ fn emit_xfrm_mon_4() {
     nl_hdr.sequence_number = 0;
     nl_hdr.flags = NLM_F_REQUEST | NLM_F_ACK;
 
-    let mut packet = NetlinkMessage::new(
+    let packet = NetlinkMessage::new(
         nl_hdr,
         XfrmMessage::GetAsyncEvent(get_async_payload).into(),
     );
-    packet.finalize();
-    packet.serialize(&mut buf[..]);
+    packet.emit(&mut buf).unwrap();
     println!("{packet:?}");
-    assert_eq!(&buf[..packet.buffer_len()], &M4_BYTES[..]);
+    assert_eq!(&buf[..], &M4_BYTES[..]);
 
-    //netlink_send_recv(&buf[..packet.buffer_len()]);
+    //netlink_send_recv(&buf[..]);
 }
 
 #[test]
 fn parse_emit_xfrm_mon_4() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&M4_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&M4_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &M4_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -1186,12 +1183,12 @@ fn parse_emit_xfrm_mon_4() {
 #[test]
 fn parse_emit_xfrm_mon_5() {
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&M5_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&M5_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
-    let mut buf = vec![0; deserialized_packet.buffer_len()];
+    let mut buf = Vec::new();
     //reserialize
-    deserialized_packet.serialize(&mut buf[..]);
+    deserialized_packet.emit(&mut buf).unwrap();
     assert_eq!(&buf[..], &M5_BYTES[..]);
 
     match deserialized_packet.into_parts().1 {
@@ -1208,7 +1205,7 @@ fn parse_emit_xfrm_mon_5() {
 
 #[test]
 fn emit_parse_xfrm_mon_6() {
-    let mut buf = vec![0; 256];
+    let mut buf = Vec::new();
 
     let report_payload = ReportMessage {
         report: UserReport {
@@ -1242,23 +1239,24 @@ fn emit_parse_xfrm_mon_6() {
 
     let mut packet =
         NetlinkMessage::new(nl_hdr, XfrmMessage::Report(report_payload).into());
-    packet.finalize();
-    packet.serialize(&mut buf[..]);
+    packet.emit(&mut buf).unwrap();
     println!("{packet:?}");
-    assert_eq!(&buf[..packet.buffer_len()], &M6_BYTES[..]);
+    assert_eq!(&buf[..], &M6_BYTES[..]);
 
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&M6_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&M6_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
+    packet.header.length = deserialized_packet.header.length;
+    packet.header.message_type = deserialized_packet.header.message_type;
     assert_eq!(packet, deserialized_packet);
 
-    //netlink_send_recv(&buf[..packet.buffer_len()]);
+    //netlink_send_recv(&buf[..]);
 }
 
 #[test]
 fn emit_parse_xfrm_mon_7() {
-    let mut buf = vec![0; 256];
+    let mut buf = Vec::new();
 
     let mapping_payload = MappingMessage {
         map: UserMapping {
@@ -1289,23 +1287,24 @@ fn emit_parse_xfrm_mon_7() {
         nl_hdr,
         XfrmMessage::Mapping(mapping_payload).into(),
     );
-    packet.finalize();
-    packet.serialize(&mut buf[..]);
+    packet.emit(&mut buf).unwrap();
     println!("{packet:?}");
-    assert_eq!(&buf[..packet.buffer_len()], &M7_BYTES[..]);
+    assert_eq!(&buf[..], &M7_BYTES[..]);
 
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&M7_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&M7_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
+    packet.header.length = deserialized_packet.header.length;
+    packet.header.message_type = deserialized_packet.header.message_type;
     assert_eq!(packet, deserialized_packet);
 
-    //netlink_send_recv(&buf[..packet.buffer_len()]);
+    //netlink_send_recv(&buf[..]);
 }
 
 #[test]
 fn emit_parse_xfrm_mon_8() {
-    let mut buf = vec![0; 256];
+    let mut buf = Vec::new();
 
     let migrate_payload = MigrateMessage {
         user_policy_id: UserPolicyId::default(),
@@ -1325,18 +1324,19 @@ fn emit_parse_xfrm_mon_8() {
         nl_hdr,
         XfrmMessage::Migrate(migrate_payload).into(),
     );
-    packet.finalize();
-    packet.serialize(&mut buf[..]);
+    packet.emit(&mut buf).unwrap();
     println!("{packet:?}");
-    assert_eq!(&buf[..packet.buffer_len()], &M8_BYTES[..]);
+    assert_eq!(&buf[..], &M8_BYTES[..]);
 
     let deserialized_packet =
-        NetlinkMessage::<XfrmMessage>::deserialize(&M8_BYTES)
+        NetlinkMessage::<XfrmMessage>::deserialize(&M8_BYTES[..])
             .expect("Failed to deserialize message");
     println!("{deserialized_packet:?}");
+    packet.header.length = deserialized_packet.header.length;
+    packet.header.message_type = deserialized_packet.header.message_type;
     assert_eq!(packet, deserialized_packet);
 
-    //netlink_send_recv(&buf[..packet.buffer_len()]);
+    //netlink_send_recv(&buf[..]);
 }
 
 // Copied from documentation, needs to be run with admin/root permissions

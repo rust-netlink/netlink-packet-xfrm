@@ -2,7 +2,9 @@
 
 use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use netlink_packet_core::{
+    append_bytes, DecodeError, Emitable, EncodeError, ErrorContext,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
@@ -10,7 +12,6 @@ use crate::{
     UserPolicyInfo, UserPolicyInfoBuffer, XFRM_ADDRESS_LEN, XFRM_ID_LEN,
     XFRM_SELECTOR_LEN, XFRM_USER_POLICY_INFO_LEN,
 };
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserAcquire {
     pub id: Id,
@@ -104,13 +105,9 @@ impl From<&UserAcquire> for UserAcquireBuffer {
 }
 
 impl Emitable for UserAcquire {
-    fn buffer_len(&self) -> usize {
-        size_of::<UserAcquireBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = UserAcquireBuffer::from(self);
-        buffer[..size_of::<UserAcquireBuffer>()]
-            .copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }

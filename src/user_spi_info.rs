@@ -2,14 +2,15 @@
 
 use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use netlink_packet_core::{
+    append_bytes, DecodeError, Emitable, EncodeError, ErrorContext,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     constants::IPPROTO_COMP, UserSaInfo, UserSaInfoBuffer,
     XFRM_USER_SA_INFO_LEN,
 };
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct UserSpiInfo {
     pub info: UserSaInfo,
@@ -80,14 +81,10 @@ impl From<&UserSpiInfo> for UserSpiInfoBuffer {
 }
 
 impl Emitable for UserSpiInfo {
-    fn buffer_len(&self) -> usize {
-        size_of::<UserSpiInfoBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = UserSpiInfoBuffer::from(self);
-        buffer[..size_of::<UserSpiInfoBuffer>()]
-            .copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 

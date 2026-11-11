@@ -2,11 +2,12 @@
 
 use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use netlink_packet_core::{
+    append_bytes, DecodeError, Emitable, EncodeError, ErrorContext,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{UserSaInfo, UserSaInfoBuffer, XFRM_USER_SA_INFO_LEN};
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserExpire {
     pub state: UserSaInfo,
@@ -64,12 +65,9 @@ impl From<&UserExpire> for UserExpireBuffer {
 }
 
 impl Emitable for UserExpire {
-    fn buffer_len(&self) -> usize {
-        size_of::<UserExpireBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = UserExpireBuffer::from(self);
-        buffer[..size_of::<UserExpireBuffer>()].copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }

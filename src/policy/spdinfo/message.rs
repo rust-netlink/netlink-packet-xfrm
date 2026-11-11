@@ -3,11 +3,11 @@
 use core::mem::size_of;
 
 use netlink_packet_core::{
-    emit_u32, parse_u32, DecodeError, Emitable, ErrorContext, Parseable,
+    append_u32, parse_u32, DecodeError, Emitable, EncodeError, ErrorContext,
+    Parseable,
 };
 
 use crate::policy::spdinfo::{nlas::VecSpdInfoAttrs, SpdInfoAttrs};
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct NewSpdInfoMessage {
     pub flags: u32,
@@ -15,13 +15,10 @@ pub struct NewSpdInfoMessage {
 }
 
 impl Emitable for NewSpdInfoMessage {
-    fn buffer_len(&self) -> usize {
-        size_of::<u32>() + self.nlas.as_slice().buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        emit_u32(&mut buffer[..size_of::<u32>()], self.flags).unwrap();
-        self.nlas.as_slice().emit(&mut buffer[size_of::<u32>()..]);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        append_u32(out, self.flags);
+        self.nlas.as_slice().emit(out)?;
+        Ok(())
     }
 }
 
@@ -44,12 +41,9 @@ pub struct GetSpdInfoMessage {
 }
 
 impl Emitable for GetSpdInfoMessage {
-    fn buffer_len(&self) -> usize {
-        size_of::<u32>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        emit_u32(&mut buffer[..size_of::<u32>()], self.flags).unwrap();
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        append_u32(out, self.flags);
+        Ok(())
     }
 }
 

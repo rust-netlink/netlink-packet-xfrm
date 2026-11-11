@@ -2,9 +2,8 @@
 
 use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable};
+use netlink_packet_core::{append_bytes, DecodeError, Emitable, EncodeError};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct SpdInfo {
     pub incnt: u32,
@@ -72,13 +71,10 @@ impl From<&SpdInfo> for SpdInfoBuffer {
 }
 
 impl Emitable for SpdInfo {
-    fn buffer_len(&self) -> usize {
-        size_of::<SpdInfoBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = SpdInfoBuffer::from(self);
-        buffer[..size_of::<SpdInfoBuffer>()].copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 
@@ -133,13 +129,10 @@ impl From<&SpdHInfo> for SpdHInfoBuffer {
 }
 
 impl Emitable for SpdHInfo {
-    fn buffer_len(&self) -> usize {
-        size_of::<SpdHInfoBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = SpdHInfoBuffer::from(self);
-        buffer[..size_of::<SpdHInfoBuffer>()].copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 
@@ -194,12 +187,9 @@ impl From<&SpdHThresh> for SpdHThreshBuffer {
 }
 
 impl Emitable for SpdHThresh {
-    fn buffer_len(&self) -> usize {
-        size_of::<SpdHThreshBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = SpdHThreshBuffer::from(self);
-        buffer[..size_of::<SpdHThreshBuffer>()].copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }

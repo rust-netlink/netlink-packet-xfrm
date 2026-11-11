@@ -2,9 +2,8 @@
 
 use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable};
+use netlink_packet_core::{append_bytes, DecodeError, Emitable, EncodeError};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserPolicyDefault {
     pub input: u8,
@@ -60,13 +59,9 @@ impl From<&UserPolicyDefault> for UserPolicyDefaultBuffer {
 }
 
 impl Emitable for UserPolicyDefault {
-    fn buffer_len(&self) -> usize {
-        size_of::<UserPolicyDefaultBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = UserPolicyDefaultBuffer::from(self);
-        buffer[..size_of::<UserPolicyDefaultBuffer>()]
-            .copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }

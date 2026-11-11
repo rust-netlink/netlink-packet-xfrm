@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
 use netlink_packet_core::{
-    DecodeError, Emitable, ErrorContext, NetlinkDeserializable, NetlinkHeader,
-    NetlinkPayload, NetlinkSerializable, Parseable, ParseableParametrized,
+    append_bytes, DecodeError, Emitable, EncodeError, ErrorContext,
+    NetlinkDeserializable, NetlinkHeader, NetlinkMessagePayload,
+    NetlinkPayload, Parseable, ParseableParametrized,
 };
 
 use crate::{
@@ -23,7 +24,6 @@ use crate::{
         ModifyMessage as StateModifyMessage, NewSadInfoMessage,
     },
 };
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum XfrmMessage {
     AddPolicy(PolicyModifyMessage),
@@ -230,95 +230,53 @@ impl ParseableParametrized<[u8], u16> for XfrmMessage {
 }
 
 impl Emitable for XfrmMessage {
-    fn buffer_len(&self) -> usize {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         use self::XfrmMessage::*;
 
         match self {
-            AddPolicy(ref msg) => msg.buffer_len(),
-            DeletePolicy(ref msg) => msg.buffer_len(),
-            GetPolicy(ref msg) => msg.buffer_len(),
-            GetSpdInfo(ref msg) => msg.buffer_len(),
-            NewSpdInfo(ref msg) => msg.buffer_len(),
-            UpdatePolicy(ref msg) => msg.buffer_len(),
-            FlushPolicy(ref msg) => msg.buffer_len(),
-            SetPolicyDefault(ref msg) => msg.buffer_len(),
-            GetPolicyDefault(ref msg) => msg.buffer_len(),
-            AddSa(ref msg) => msg.buffer_len(),
-            AllocSpi(ref msg) => msg.buffer_len(),
-            DeleteSa(ref msg) => msg.buffer_len(),
-            FlushSa(ref msg) => msg.buffer_len(),
-            GetSa(ref msg) => msg.buffer_len(),
-            GetDumpSa(ref msg) => msg.buffer_len(),
-            GetSadInfo(ref msg) => msg.buffer_len(),
-            NewSadInfo(ref msg) => msg.buffer_len(),
-            UpdateSa(ref msg) => msg.buffer_len(),
-            Acquire(ref msg) => msg.buffer_len(),
-            Expire(ref msg) => msg.buffer_len(),
-            GetAsyncEvent(ref msg) => msg.buffer_len(),
-            NewAsyncEvent(ref msg) => msg.buffer_len(),
-            PolicyExpire(ref msg) => msg.buffer_len(),
-            Report(ref msg) => msg.buffer_len(),
-            Mapping(ref msg) => msg.buffer_len(),
-            Migrate(ref msg) => msg.buffer_len(),
-            Other((_, ref data)) => data.len(),
+            AddPolicy(ref msg) => msg.emit(out)?,
+            DeletePolicy(ref msg) => msg.emit(out)?,
+            GetPolicy(ref msg) => msg.emit(out)?,
+            GetSpdInfo(ref msg) => msg.emit(out)?,
+            NewSpdInfo(ref msg) => msg.emit(out)?,
+            UpdatePolicy(ref msg) => msg.emit(out)?,
+            FlushPolicy(ref msg) => msg.emit(out)?,
+            SetPolicyDefault(ref msg) => msg.emit(out)?,
+            GetPolicyDefault(ref msg) => msg.emit(out)?,
+            AddSa(ref msg) => msg.emit(out)?,
+            AllocSpi(ref msg) => msg.emit(out)?,
+            DeleteSa(ref msg) => msg.emit(out)?,
+            FlushSa(ref msg) => msg.emit(out)?,
+            GetSa(ref msg) => msg.emit(out)?,
+            GetDumpSa(ref msg) => msg.emit(out)?,
+            GetSadInfo(ref msg) => msg.emit(out)?,
+            NewSadInfo(ref msg) => msg.emit(out)?,
+            UpdateSa(ref msg) => msg.emit(out)?,
+            Acquire(ref msg) => msg.emit(out)?,
+            Expire(ref msg) => msg.emit(out)?,
+            GetAsyncEvent(ref msg) => msg.emit(out)?,
+            NewAsyncEvent(ref msg) => msg.emit(out)?,
+            PolicyExpire(ref msg) => msg.emit(out)?,
+            Report(ref msg) => msg.emit(out)?,
+            Mapping(ref msg) => msg.emit(out)?,
+            Migrate(ref msg) => msg.emit(out)?,
+            Other((_, ref data)) => append_bytes(out, &data[..]),
         }
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        use self::XfrmMessage::*;
-
-        match self {
-            AddPolicy(ref msg) => msg.emit(buffer),
-            DeletePolicy(ref msg) => msg.emit(buffer),
-            GetPolicy(ref msg) => msg.emit(buffer),
-            GetSpdInfo(ref msg) => msg.emit(buffer),
-            NewSpdInfo(ref msg) => msg.emit(buffer),
-            UpdatePolicy(ref msg) => msg.emit(buffer),
-            FlushPolicy(ref msg) => msg.emit(buffer),
-            SetPolicyDefault(ref msg) => msg.emit(buffer),
-            GetPolicyDefault(ref msg) => msg.emit(buffer),
-            AddSa(ref msg) => msg.emit(buffer),
-            AllocSpi(ref msg) => msg.emit(buffer),
-            DeleteSa(ref msg) => msg.emit(buffer),
-            FlushSa(ref msg) => msg.emit(buffer),
-            GetSa(ref msg) => msg.emit(buffer),
-            GetDumpSa(ref msg) => msg.emit(buffer),
-            GetSadInfo(ref msg) => msg.emit(buffer),
-            NewSadInfo(ref msg) => msg.emit(buffer),
-            UpdateSa(ref msg) => msg.emit(buffer),
-            Acquire(ref msg) => msg.emit(buffer),
-            Expire(ref msg) => msg.emit(buffer),
-            GetAsyncEvent(ref msg) => msg.emit(buffer),
-            NewAsyncEvent(ref msg) => msg.emit(buffer),
-            PolicyExpire(ref msg) => msg.emit(buffer),
-            Report(ref msg) => msg.emit(buffer),
-            Mapping(ref msg) => msg.emit(buffer),
-            Migrate(ref msg) => msg.emit(buffer),
-            Other((_, ref data)) => buffer.copy_from_slice(&data[..]),
-        }
+        Ok(())
     }
 }
 
-impl NetlinkSerializable for XfrmMessage {
+impl NetlinkMessagePayload for XfrmMessage {
     fn message_type(&self) -> u16 {
-        self.message_type()
-    }
-
-    fn buffer_len(&self) -> usize {
-        <Self as Emitable>::buffer_len(self)
-    }
-
-    fn serialize(&self, buffer: &mut [u8]) {
-        self.emit(buffer)
+        XfrmMessage::message_type(self)
     }
 }
 
 impl NetlinkDeserializable for XfrmMessage {
-    type Error = DecodeError;
     fn deserialize(
         header: &NetlinkHeader,
         payload: &[u8],
-    ) -> Result<Self, Self::Error> {
+    ) -> Result<Self, DecodeError> {
         XfrmMessage::parse_with_param(payload, header.message_type)
     }
 }

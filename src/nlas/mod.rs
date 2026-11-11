@@ -38,12 +38,11 @@ pub mod user_offload;
 pub use user_offload::*;
 
 pub mod user_template;
-use std::mem::size_of;
 
 use netlink_packet_core::{
-    emit_u32, emit_u64, parse_u32, parse_u64, parse_u8, DecodeError,
-    DefaultNla, Emitable, ErrorContext, Nla, NlaBuffer, NlasIterator,
-    Parseable,
+    append_bytes, append_u32, append_u64, parse_u32, parse_u64, parse_u8,
+    DecodeError, DefaultNla, Emitable, EncodeError, ErrorContext, Nla,
+    NlaBuffer, NlasIterator, Parseable,
 };
 pub use user_template::*;
 
@@ -56,8 +55,8 @@ pub(crate) struct VecXfrmAttrs(pub(crate) Vec<XfrmAttrs>);
 impl Parseable<[u8]> for VecXfrmAttrs {
     fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
         let mut nlas = vec![];
-        for nla_buf in NlasIterator::new(buf) {
-            nlas.push(XfrmAttrs::parse(&nla_buf?)?);
+        for nla_buf in NlasIterator::new(buf)? {
+            nlas.push(XfrmAttrs::parse(&nla_buf)?);
         }
         Ok(Self(nlas))
     }
@@ -105,94 +104,53 @@ pub enum XfrmAttrs {
 
 impl Nla for XfrmAttrs {
     #[rustfmt::skip]
-    fn value_len(&self) -> usize {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         use self::XfrmAttrs::*;
         match *self {
-            AddressFilter(ref v) => v.buffer_len(),
-            AuthenticationAlg(ref v) => v.buffer_len(),
-            AuthenticationAlgTrunc(ref v) => v.buffer_len(),
-            CareOfAddr(ref v) => v.buffer_len(),
-            CompressionAlg(ref v) => v.buffer_len(),
-            EncapsulationTemplate(ref v) => v.buffer_len(),
-            EncryptionAlg(ref v) => v.buffer_len(),
-            EncryptionAlgAead(ref v) => v.buffer_len(),
-            EventTimeThreshold(_) => size_of::<u32>(),
-            ExtraFlags(_) => size_of::<u32>(),
-            IfId(_) => size_of::<u32>(),
-            KmAddress(ref v) => v.buffer_len(),
-            LastUsed(_) => size_of::<u64>(),
-            LifetimeBytes(ref v) => v.buffer_len(),
-            MappingTimeThreshold(_) => size_of::<u32>(),
-            Mark(ref v) => v.buffer_len(),
-            MarkMask(_) => size_of::<u32>(),
-            MarkVal(_) => size_of::<u32>(),
-            Migrate(ref v) => v.buffer_len(),
-            OffloadDevice(ref v) => v.buffer_len(),
-            Pad() => 0,
-            PolicyInfo(ref v) => v.buffer_len(),
-            PolicyType(ref v) => v.buffer_len(),
-            Proto(_) => size_of::<u8>(),
-            ReplayState(ref v) => v.buffer_len(),
-            ReplayStateEsn(ref v) => v.buffer_len(),
-            ReplayThreshold(_) => size_of::<u32>(),
-            SaInfo(ref v) => v.buffer_len(),
-            SecurityContext(ref v) => v.buffer_len(),
-            SrcAddr(ref v) => v.buffer_len(),
-            Template(ref v) => v.len() * XFRM_USER_TEMPLATE_LEN,
-            TfcPadding(_) => size_of::<u32>(),
-            Unspec(ref bytes) => bytes.len(),
-
-            Other(ref attr)  => attr.value_len(),
-        }
-    }
-
-    fn emit_value(&self, buffer: &mut [u8]) {
-        use self::XfrmAttrs::*;
-        match *self {
-            AddressFilter(ref v) => v.emit(buffer),
-            AuthenticationAlg(ref v) => v.emit(buffer),
-            AuthenticationAlgTrunc(ref v) => v.emit(buffer),
-            CareOfAddr(ref v) => v.emit(buffer),
-            CompressionAlg(ref v) => v.emit(buffer),
-            EncapsulationTemplate(ref v) => v.emit(buffer),
-            EncryptionAlg(ref v) => v.emit(buffer),
-            EncryptionAlgAead(ref v) => v.emit(buffer),
-            EventTimeThreshold(ref v) => emit_u32(buffer, *v).unwrap(),
-            ExtraFlags(ref v) => emit_u32(buffer, *v).unwrap(),
-            IfId(ref v) => emit_u32(buffer, *v).unwrap(),
-            KmAddress(ref v) => v.emit(buffer),
-            LastUsed(ref v) => emit_u64(buffer, *v).unwrap(),
-            LifetimeBytes(ref v) => v.emit(buffer),
-            MappingTimeThreshold(ref v) => emit_u32(buffer, *v).unwrap(),
-            Mark(ref v) => v.emit(buffer),
-            MarkMask(ref v) => emit_u32(buffer, *v).unwrap(),
-            MarkVal(ref v) => emit_u32(buffer, *v).unwrap(),
-            Migrate(ref v) => v.emit(buffer),
-            OffloadDevice(ref v) => v.emit(buffer),
+            AddressFilter(ref v) => v.emit(out)?,
+            AuthenticationAlg(ref v) => v.emit(out)?,
+            AuthenticationAlgTrunc(ref v) => v.emit(out)?,
+            CareOfAddr(ref v) => v.emit(out)?,
+            CompressionAlg(ref v) => v.emit(out)?,
+            EncapsulationTemplate(ref v) => v.emit(out)?,
+            EncryptionAlg(ref v) => v.emit(out)?,
+            EncryptionAlgAead(ref v) => v.emit(out)?,
+            EventTimeThreshold(ref v) => append_u32(out, *v),
+            ExtraFlags(ref v) => append_u32(out, *v),
+            IfId(ref v) => append_u32(out, *v),
+            KmAddress(ref v) => v.emit(out)?,
+            LastUsed(ref v) => append_u64(out, *v),
+            LifetimeBytes(ref v) => v.emit(out)?,
+            MappingTimeThreshold(ref v) => append_u32(out, *v),
+            Mark(ref v) => v.emit(out)?,
+            MarkMask(ref v) => append_u32(out, *v),
+            MarkVal(ref v) => append_u32(out, *v),
+            Migrate(ref v) => v.emit(out)?,
+            OffloadDevice(ref v) => v.emit(out)?,
             Pad() =>
                 /* ignore */
                 {}
-            PolicyInfo(ref v) => v.emit(buffer),
-            PolicyType(ref v) => v.emit(buffer),
-            Proto(ref v) => buffer[0] = *v,
-            ReplayState(ref v) => v.emit(buffer),
-            ReplayStateEsn(ref v) => v.emit(buffer),
-            ReplayThreshold(ref v) => emit_u32(buffer, *v).unwrap(),
-            SaInfo(ref v) => v.emit(buffer),
-            SecurityContext(ref v) => v.emit(buffer),
-            SrcAddr(ref v) => v.emit(buffer),
+            PolicyInfo(ref v) => v.emit(out)?,
+            PolicyType(ref v) => v.emit(out)?,
+            Proto(ref v) => out.push(*v),
+            ReplayState(ref v) => v.emit(out)?,
+            ReplayStateEsn(ref v) => v.emit(out)?,
+            ReplayThreshold(ref v) => append_u32(out, *v),
+            SaInfo(ref v) => v.emit(out)?,
+            SecurityContext(ref v) => v.emit(out)?,
+            SrcAddr(ref v) => v.emit(out)?,
             Template(ref v) => {
-                let (chunks, _) =
-                    buffer.as_chunks_mut::<XFRM_USER_TEMPLATE_LEN>();
-                for (tmpl, buf) in v.iter().zip(chunks.iter_mut()) {
-                    tmpl.emit(buf);
+                for tmpl in v {
+                    tmpl.emit(out)?;
                 }
             }
-            TfcPadding(ref v) => emit_u32(buffer, *v).unwrap(),
-            Unspec(ref bytes) => buffer.copy_from_slice(bytes.as_slice()),
+            TfcPadding(ref v) => append_u32(out, *v),
+            Unspec(ref bytes) => append_bytes(out, bytes.as_slice()),
 
-            Other(ref attr) => attr.emit_value(buffer),
+            Other(ref attr) => return attr.emit_value(out),
         }
+        Ok(())
+
     }
 
     fn kind(&self) -> u16 {
@@ -237,8 +195,8 @@ impl Nla for XfrmAttrs {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for XfrmAttrs {
-    fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl<'a> Parseable<NlaBuffer<'a>> for XfrmAttrs {
+    fn parse(buf: &NlaBuffer<'a>) -> Result<Self, DecodeError> {
         use self::XfrmAttrs::*;
         let payload = buf.value();
         Ok(match buf.kind() {

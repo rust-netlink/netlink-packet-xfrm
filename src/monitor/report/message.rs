@@ -2,10 +2,11 @@
 
 use core::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{
+    DecodeError, Emitable, EncodeError, ErrorContext, Parseable,
+};
 
 use crate::{nlas::VecXfrmAttrs, UserReport, UserReportBuffer, XfrmAttrs};
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct ReportMessage {
     pub report: UserReport,
@@ -13,15 +14,10 @@ pub struct ReportMessage {
 }
 
 impl Emitable for ReportMessage {
-    fn buffer_len(&self) -> usize {
-        self.report.buffer_len() + self.nlas.as_slice().buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.report.emit(buffer);
-        self.nlas
-            .as_slice()
-            .emit(&mut buffer[self.report.buffer_len()..]);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.report.emit(out)?;
+        self.nlas.as_slice().emit(out)?;
+        Ok(())
     }
 }
 

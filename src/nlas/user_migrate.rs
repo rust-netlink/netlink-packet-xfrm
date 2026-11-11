@@ -2,11 +2,12 @@
 
 use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use netlink_packet_core::{
+    append_bytes, DecodeError, Emitable, EncodeError, ErrorContext,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{Address, AddressBuffer, XFRM_ADDRESS_LEN};
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserMigrate {
     pub old_daddr: Address,
@@ -110,13 +111,9 @@ impl From<&UserMigrate> for UserMigrateBuffer {
 }
 
 impl Emitable for UserMigrate {
-    fn buffer_len(&self) -> usize {
-        size_of::<UserMigrateBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = UserMigrateBuffer::from(self);
-        buffer[..size_of::<UserMigrateBuffer>()]
-            .copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }

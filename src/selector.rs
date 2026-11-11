@@ -2,14 +2,15 @@
 
 use std::{mem::size_of, net::IpAddr};
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use netlink_packet_core::{
+    append_bytes, DecodeError, Emitable, EncodeError, ErrorContext,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     constants::{AF_INET, AF_INET6},
     Address, XFRM_ADDRESS_LEN,
 };
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct Selector {
     pub daddr: Address,
@@ -107,13 +108,10 @@ impl From<&Selector> for SelectorBuffer {
 }
 
 impl Emitable for Selector {
-    fn buffer_len(&self) -> usize {
-        size_of::<SelectorBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = SelectorBuffer::from(self);
-        buffer[..size_of::<SelectorBuffer>()].copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 

@@ -5,9 +5,8 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
-use netlink_packet_core::{DecodeError, Emitable};
+use netlink_packet_core::{append_bytes, DecodeError, Emitable, EncodeError};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
-
 pub const XFRM_ADDRESS_LEN: usize = 16;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
@@ -53,13 +52,10 @@ impl From<&Address> for AddressBuffer {
 }
 
 impl Emitable for Address {
-    fn buffer_len(&self) -> usize {
-        size_of::<AddressBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = AddressBuffer::from(self);
-        buffer[..size_of::<AddressBuffer>()].copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 

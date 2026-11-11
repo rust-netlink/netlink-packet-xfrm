@@ -2,10 +2,11 @@
 
 use core::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{
+    DecodeError, Emitable, EncodeError, ErrorContext, Parseable,
+};
 
 use crate::{nlas::VecXfrmAttrs, UserSaId, UserSaIdBuffer, XfrmAttrs};
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct DelGetMessage {
     pub user_sa_id: UserSaId,
@@ -13,15 +14,10 @@ pub struct DelGetMessage {
 }
 
 impl Emitable for DelGetMessage {
-    fn buffer_len(&self) -> usize {
-        self.user_sa_id.buffer_len() + self.nlas.as_slice().buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.user_sa_id.emit(buffer);
-        self.nlas
-            .as_slice()
-            .emit(&mut buffer[self.user_sa_id.buffer_len()..]);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.user_sa_id.emit(out)?;
+        self.nlas.as_slice().emit(out)?;
+        Ok(())
     }
 }
 
@@ -45,12 +41,9 @@ pub struct GetDumpMessage {
 }
 
 impl Emitable for GetDumpMessage {
-    fn buffer_len(&self) -> usize {
-        self.nlas.as_slice().buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.nlas.as_slice().emit(&mut buffer[..]);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.nlas.as_slice().emit(out)?;
+        Ok(())
     }
 }
 

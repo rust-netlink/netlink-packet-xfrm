@@ -2,11 +2,10 @@
 
 use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable};
+use netlink_packet_core::{append_bytes, DecodeError, Emitable, EncodeError};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::constants::*;
-
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SecurityCtx {
     pub len: u16,
@@ -85,15 +84,12 @@ impl From<&SecurityCtx> for SecurityCtxBuffer {
 }
 
 impl Emitable for SecurityCtx {
-    fn buffer_len(&self) -> usize {
-        size_of::<SecurityCtxBuffer>() + self.ctx_str.len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = SecurityCtxBuffer::from(self);
-        let header_len = size_of::<SecurityCtxBuffer>();
-        buffer[..header_len].copy_from_slice(raw.as_bytes());
-        buffer[header_len..].copy_from_slice(&self.ctx_str);
+        let _header_len = size_of::<SecurityCtxBuffer>();
+        append_bytes(out, raw.as_bytes());
+        append_bytes(out, &self.ctx_str);
+        Ok(())
     }
 }
 

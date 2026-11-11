@@ -2,10 +2,11 @@
 
 use core::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{
+    DecodeError, Emitable, EncodeError, ErrorContext, Parseable,
+};
 
 use crate::{nlas::VecXfrmAttrs, AsyncEventId, AsyncEventIdBuffer, XfrmAttrs};
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct NewAsyncEventMessage {
     pub id: AsyncEventId,
@@ -13,15 +14,10 @@ pub struct NewAsyncEventMessage {
 }
 
 impl Emitable for NewAsyncEventMessage {
-    fn buffer_len(&self) -> usize {
-        self.id.buffer_len() + self.nlas.as_slice().buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.id.emit(buffer);
-        self.nlas
-            .as_slice()
-            .emit(&mut buffer[self.id.buffer_len()..]);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.id.emit(out)?;
+        self.nlas.as_slice().emit(out)?;
+        Ok(())
     }
 }
 
