@@ -2,22 +2,20 @@
 
 use core::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{
+    DecodeError, Emitable, EncodeError, ErrorContext, Parseable,
+};
 
 use crate::{AsyncEventId, AsyncEventIdBuffer};
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct GetAsyncEventMessage {
     pub id: AsyncEventId,
 }
 
 impl Emitable for GetAsyncEventMessage {
-    fn buffer_len(&self) -> usize {
-        self.id.buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.id.emit(buffer);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.id.emit(out)?;
+        Ok(())
     }
 }
 

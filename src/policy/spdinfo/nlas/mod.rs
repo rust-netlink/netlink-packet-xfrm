@@ -2,8 +2,8 @@
 
 pub mod spd_info;
 use netlink_packet_core::{
-    DecodeError, DefaultNla, Emitable, ErrorContext, Nla, NlaBuffer,
-    NlasIterator, Parseable,
+    append_bytes, DecodeError, DefaultNla, Emitable, EncodeError, ErrorContext,
+    Nla, NlaBuffer, NlasIterator, Parseable,
 };
 pub use spd_info::*;
 
@@ -14,8 +14,8 @@ pub(crate) struct VecSpdInfoAttrs(pub(crate) Vec<SpdInfoAttrs>);
 impl Parseable<[u8]> for VecSpdInfoAttrs {
     fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
         let mut nlas = vec![];
-        for nla_buf in NlasIterator::new(buf) {
-            nlas.push(SpdInfoAttrs::parse(&nla_buf?)?);
+        for nla_buf in NlasIterator::new(buf)? {
+            nlas.push(SpdInfoAttrs::parse(&nla_buf)?);
         }
         Ok(Self(nlas))
     }
@@ -33,29 +33,18 @@ pub enum SpdInfoAttrs {
 
 impl Nla for SpdInfoAttrs {
     #[rustfmt::skip]
-    fn value_len(&self) -> usize {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         use self::SpdInfoAttrs::*;
         match *self {
-            Unspec(ref bytes) => bytes.len(),
-            SpdInfo(ref v) => v.buffer_len(),
-            SpdHInfo(ref v) => v.buffer_len(),
-            SpdIpv4HThresh(ref v) => v.buffer_len(),
-            SpdIpv6HThresh(ref v) => v.buffer_len(),
-            Other(ref attr)  => attr.value_len(),
+            Unspec(ref bytes) => append_bytes(out, bytes.as_slice()),
+            SpdInfo(ref v) => v.emit(out)?,
+            SpdHInfo(ref v) => v.emit(out)?,
+            SpdIpv4HThresh(ref v) => v.emit(out)?,
+            SpdIpv6HThresh(ref v) => v.emit(out)?,
+            Other(ref attr) => return attr.emit_value(out),
         }
-    }
+        Ok(())
 
-    #[rustfmt::skip]
-    fn emit_value(&self, buffer: &mut [u8]) {
-        use self::SpdInfoAttrs::*;
-        match *self {
-            Unspec(ref bytes) => buffer.copy_from_slice(bytes.as_slice()),
-            SpdInfo(ref v) => v.emit(buffer),
-            SpdHInfo(ref v) => v.emit(buffer),
-            SpdIpv4HThresh(ref v) => v.emit(buffer),
-            SpdIpv6HThresh(ref v) => v.emit(buffer),
-            Other(ref attr) => attr.emit_value(buffer),
-        }
     }
 
     fn kind(&self) -> u16 {
@@ -71,8 +60,8 @@ impl Nla for SpdInfoAttrs {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for SpdInfoAttrs {
-    fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl<'a> Parseable<NlaBuffer<'a>> for SpdInfoAttrs {
+    fn parse(buf: &NlaBuffer<'a>) -> Result<Self, DecodeError> {
         use self::SpdInfoAttrs::*;
         let payload = buf.value();
         Ok(match buf.kind() {

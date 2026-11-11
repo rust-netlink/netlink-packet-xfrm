@@ -2,7 +2,9 @@
 
 use std::{mem::size_of, net::IpAddr};
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use netlink_packet_core::{
+    append_bytes, DecodeError, Emitable, EncodeError, ErrorContext,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
@@ -12,7 +14,6 @@ use crate::{
     StatsBuffer, XFRM_ADDRESS_LEN, XFRM_ID_LEN, XFRM_LIFETIME_CONFIG_LEN,
     XFRM_LIFETIME_LEN, XFRM_SELECTOR_LEN, XFRM_STATS_LEN,
 };
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserSaInfo {
     pub selector: Selector,
@@ -134,13 +135,10 @@ impl From<&UserSaInfo> for UserSaInfoBuffer {
 }
 
 impl Emitable for UserSaInfo {
-    fn buffer_len(&self) -> usize {
-        size_of::<UserSaInfoBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = UserSaInfoBuffer::from(self);
-        buffer[..size_of::<UserSaInfoBuffer>()].copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }
 

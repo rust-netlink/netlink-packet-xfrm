@@ -2,22 +2,20 @@
 
 use core::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{
+    DecodeError, Emitable, EncodeError, ErrorContext, Parseable,
+};
 
 use crate::{UserMapping, UserMappingBuffer};
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct MappingMessage {
     pub map: UserMapping,
 }
 
 impl Emitable for MappingMessage {
-    fn buffer_len(&self) -> usize {
-        self.map.buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.map.emit(buffer);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.map.emit(out)?;
+        Ok(())
     }
 }
 

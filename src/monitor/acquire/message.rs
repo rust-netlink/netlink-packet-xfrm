@@ -2,10 +2,11 @@
 
 use core::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{
+    DecodeError, Emitable, EncodeError, ErrorContext, Parseable,
+};
 
 use crate::{nlas::VecXfrmAttrs, UserAcquire, UserAcquireBuffer, XfrmAttrs};
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct AcquireMessage {
     pub acquire: UserAcquire,
@@ -13,15 +14,10 @@ pub struct AcquireMessage {
 }
 
 impl Emitable for AcquireMessage {
-    fn buffer_len(&self) -> usize {
-        self.acquire.buffer_len() + self.nlas.as_slice().buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.acquire.emit(buffer);
-        self.nlas
-            .as_slice()
-            .emit(&mut buffer[self.acquire.buffer_len()..]);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.acquire.emit(out)?;
+        self.nlas.as_slice().emit(out)?;
+        Ok(())
     }
 }
 

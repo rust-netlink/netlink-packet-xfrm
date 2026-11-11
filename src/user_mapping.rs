@@ -2,14 +2,15 @@
 
 use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use netlink_packet_core::{
+    append_bytes, DecodeError, Emitable, EncodeError, ErrorContext,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
     Address, AddressBuffer, UserSaId, UserSaIdBuffer, XFRM_ADDRESS_LEN,
     XFRM_USER_SA_ID_LEN,
 };
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserMapping {
     pub id: UserSaId,
@@ -91,13 +92,9 @@ impl From<&UserMapping> for UserMappingBuffer {
 }
 
 impl Emitable for UserMapping {
-    fn buffer_len(&self) -> usize {
-        size_of::<UserMappingBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = UserMappingBuffer::from(self);
-        buffer[..size_of::<UserMappingBuffer>()]
-            .copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }

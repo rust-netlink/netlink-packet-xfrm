@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 
 pub mod sad_info;
-use std::mem::size_of;
 
 use netlink_packet_core::{
-    emit_u32, parse_u32, DecodeError, DefaultNla, Emitable, ErrorContext, Nla,
-    NlaBuffer, NlasIterator, Parseable,
+    append_bytes, append_u32, parse_u32, DecodeError, DefaultNla, Emitable,
+    EncodeError, ErrorContext, Nla, NlaBuffer, NlasIterator, Parseable,
 };
 pub use sad_info::*;
 
@@ -16,8 +15,8 @@ pub(crate) struct VecSadInfoAttrs(pub(crate) Vec<SadInfoAttrs>);
 impl Parseable<[u8]> for VecSadInfoAttrs {
     fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
         let mut nlas = vec![];
-        for nla_buf in NlasIterator::new(buf) {
-            nlas.push(SadInfoAttrs::parse(&nla_buf?)?);
+        for nla_buf in NlasIterator::new(buf)? {
+            nlas.push(SadInfoAttrs::parse(&nla_buf)?);
         }
         Ok(Self(nlas))
     }
@@ -33,25 +32,16 @@ pub enum SadInfoAttrs {
 
 impl Nla for SadInfoAttrs {
     #[rustfmt::skip]
-    fn value_len(&self) -> usize {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         use self::SadInfoAttrs::*;
         match *self {
-            Unspec(ref bytes) => bytes.len(),
-            SadCount(_) => size_of::<u32>(),
-            SadHInfo(ref v) => v.buffer_len(),
-            Other(ref attr)  => attr.value_len(),
+            Unspec(ref bytes) => append_bytes(out, bytes.as_slice()),
+            SadCount(ref value) => append_u32(out, *value),
+            SadHInfo(ref v) => v.emit(out)?,
+            Other(ref attr) => return attr.emit_value(out),
         }
-    }
+        Ok(())
 
-    #[rustfmt::skip]
-    fn emit_value(&self, buffer: &mut [u8]) {
-        use self::SadInfoAttrs::*;
-        match *self {
-            Unspec(ref bytes) => buffer.copy_from_slice(bytes.as_slice()),
-            SadCount(ref value) => emit_u32(buffer, *value).unwrap(),
-            SadHInfo(ref v) => v.emit(buffer),
-            Other(ref attr) => attr.emit_value(buffer),
-        }
     }
 
     fn kind(&self) -> u16 {
@@ -65,8 +55,8 @@ impl Nla for SadInfoAttrs {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for SadInfoAttrs {
-    fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
+impl<'a> Parseable<NlaBuffer<'a>> for SadInfoAttrs {
+    fn parse(buf: &NlaBuffer<'a>) -> Result<Self, DecodeError> {
         use self::SadInfoAttrs::*;
         let payload = buf.value();
         Ok(match buf.kind() {

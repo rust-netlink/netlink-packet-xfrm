@@ -2,22 +2,20 @@
 
 use core::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{
+    DecodeError, Emitable, EncodeError, ErrorContext, Parseable,
+};
 
 use crate::{UserPolicyDefault, UserPolicyDefaultBuffer};
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct DefaultMessage {
     pub user_policy: UserPolicyDefault,
 }
 
 impl Emitable for DefaultMessage {
-    fn buffer_len(&self) -> usize {
-        size_of::<UserPolicyDefaultBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.user_policy.emit(buffer);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.user_policy.emit(out)?;
+        Ok(())
     }
 }
 

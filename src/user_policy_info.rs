@@ -2,7 +2,9 @@
 
 use std::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext};
+use netlink_packet_core::{
+    append_bytes, DecodeError, Emitable, EncodeError, ErrorContext,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 use crate::{
@@ -10,7 +12,6 @@ use crate::{
     SelectorBuffer, XFRM_LIFETIME_CONFIG_LEN, XFRM_LIFETIME_LEN,
     XFRM_SELECTOR_LEN,
 };
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct UserPolicyInfo {
     pub selector: Selector,
@@ -109,13 +110,9 @@ impl From<&UserPolicyInfo> for UserPolicyInfoBuffer {
 }
 
 impl Emitable for UserPolicyInfo {
-    fn buffer_len(&self) -> usize {
-        size_of::<UserPolicyInfoBuffer>()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = UserPolicyInfoBuffer::from(self);
-        buffer[..size_of::<UserPolicyInfoBuffer>()]
-            .copy_from_slice(raw.as_bytes());
+        append_bytes(out, raw.as_bytes());
+        Ok(())
     }
 }

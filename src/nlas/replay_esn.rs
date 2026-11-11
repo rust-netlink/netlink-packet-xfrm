@@ -2,9 +2,10 @@
 
 use std::mem::size_of;
 
-use netlink_packet_core::{emit_u32, parse_u32, DecodeError, Emitable};
+use netlink_packet_core::{
+    append_bytes, append_u32, parse_u32, DecodeError, Emitable, EncodeError,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
-
 pub const XFRM_REPLAY_ESN_LEN: usize = 24;
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
@@ -79,16 +80,13 @@ impl From<&ReplayEsn> for ReplayEsnBuffer {
 }
 
 impl Emitable for ReplayEsn {
-    fn buffer_len(&self) -> usize {
-        size_of::<ReplayEsnBuffer>() + self.bmp.len() * 4
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
         let raw = ReplayEsnBuffer::from(self);
-        let header_len = size_of::<ReplayEsnBuffer>();
-        buffer[..header_len].copy_from_slice(raw.as_bytes());
-        for (i, v) in self.bmp.iter().enumerate() {
-            emit_u32(&mut buffer[header_len + i * 4..], *v).unwrap();
+        let _header_len = size_of::<ReplayEsnBuffer>();
+        append_bytes(out, raw.as_bytes());
+        for v in self.bmp.iter() {
+            append_u32(out, *v);
         }
+        Ok(())
     }
 }

@@ -2,12 +2,13 @@
 
 use core::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{
+    DecodeError, Emitable, EncodeError, ErrorContext, Parseable,
+};
 
 use crate::{
     nlas::VecXfrmAttrs, UserPolicyInfo, UserPolicyInfoBuffer, XfrmAttrs,
 };
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct ModifyMessage {
     pub user_policy_info: UserPolicyInfo,
@@ -15,15 +16,10 @@ pub struct ModifyMessage {
 }
 
 impl Emitable for ModifyMessage {
-    fn buffer_len(&self) -> usize {
-        self.user_policy_info.buffer_len() + self.nlas.as_slice().buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.user_policy_info.emit(buffer);
-        self.nlas
-            .as_slice()
-            .emit(&mut buffer[self.user_policy_info.buffer_len()..]);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.user_policy_info.emit(out)?;
+        self.nlas.as_slice().emit(out)?;
+        Ok(())
     }
 }
 

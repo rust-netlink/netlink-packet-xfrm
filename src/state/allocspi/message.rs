@@ -2,10 +2,11 @@
 
 use core::mem::size_of;
 
-use netlink_packet_core::{DecodeError, Emitable, ErrorContext, Parseable};
+use netlink_packet_core::{
+    DecodeError, Emitable, EncodeError, ErrorContext, Parseable,
+};
 
 use crate::{nlas::VecXfrmAttrs, UserSpiInfo, UserSpiInfoBuffer, XfrmAttrs};
-
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct AllocSpiMessage {
     pub spi_info: UserSpiInfo,
@@ -13,15 +14,10 @@ pub struct AllocSpiMessage {
 }
 
 impl Emitable for AllocSpiMessage {
-    fn buffer_len(&self) -> usize {
-        self.spi_info.buffer_len() + self.nlas.as_slice().buffer_len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.spi_info.emit(buffer);
-        self.nlas
-            .as_slice()
-            .emit(&mut buffer[self.spi_info.buffer_len()..]);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.spi_info.emit(out)?;
+        self.nlas.as_slice().emit(out)?;
+        Ok(())
     }
 }
 
