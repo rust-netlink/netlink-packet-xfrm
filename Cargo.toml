@@ -11,7 +11,7 @@ description = "netlink xfrm packet types for IPsec"
 
 [dependencies]
 libc= "0.2.177"
-netlink-packet-core = "1.0.0-rc1"
+netlink-packet-core = "1.0.0-rc2"
 zerocopy = { version = "0.8", features = ["derive"] }
 
 [dev-dependencies]
