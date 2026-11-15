@@ -5,8 +5,9 @@ use std::{
     str::FromStr,
 };
 
+use libc::NETLINK_XFRM;
 use netlink_packet_core::{NetlinkHeader, NetlinkMessage, NetlinkPayload, *};
-use netlink_sys::{protocols::NETLINK_XFRM, Socket, SocketAddr};
+use netlink_sys::{Socket, SocketAddr};
 
 use crate::{
     constants::*,
@@ -1342,7 +1343,7 @@ fn emit_parse_xfrm_mon_8() {
 // Copied from documentation, needs to be run with admin/root permissions
 fn netlink_send_recv(pkt: &[u8]) {
     // open a new socket for the NETLINK_XFRM subsystem
-    let socket = Socket::new(NETLINK_XFRM).unwrap();
+    let socket = Socket::new(NETLINK_XFRM as isize).unwrap();
     // address of the remote peer we'll send a message to. This particular
     // address is for the kernel
     let kernel_addr = SocketAddr::new(0, 0);
